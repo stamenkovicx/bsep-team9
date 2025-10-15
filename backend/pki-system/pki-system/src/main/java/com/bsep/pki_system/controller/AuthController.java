@@ -1,6 +1,7 @@
 package com.bsep.pki_system.controller;
 
 import com.bsep.pki_system.dto.LoginDTO;
+import com.bsep.pki_system.dto.LoginResponseDTO;
 import com.bsep.pki_system.dto.RegisterDTO;
 import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.User;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -37,17 +39,23 @@ public class AuthController {
     public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO request) {
         // Provera da li email već postoji
         if (userService.existsByEmail(request.getEmail())) {
-            return ResponseEntity.badRequest().body("Email is already in use");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Email is already in use"
+            ));
         }
 
         // Provera da li se lozinke poklapaju
         if (!request.getPassword().equals(request.getConfirmPassword())) {
-            return ResponseEntity.badRequest().body("Passwords do not match");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", "Passwords do not match"
+            ));
         }
 
         // Validacija jačine lozinke
         if (!passwordValidator.isValid(request.getPassword())) {
-            return ResponseEntity.badRequest().body(passwordValidator.getValidationMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", passwordValidator.getValidationMessage()
+            ));
         }
 
         // Kreiranje korisnika
@@ -71,10 +79,12 @@ public class AuthController {
         // Slanje verification email-a
         try {
             emailVerificationService.sendVerificationEmail(savedUser, token);
-            return ResponseEntity.ok("Registration successful! Please check your email to verify your account.");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("User registered but failed to send verification email. Please contact support.");
-        }
+            return ResponseEntity.ok(Map.of(
+                    "message", "Registration successful! Please check your email to verify your account."
+            ));        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "User registered but failed to send verification email. Please contact support."
+            ));        }
     }
 
     @GetMapping("/verify")
@@ -120,7 +130,7 @@ public class AuthController {
         }
 
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(token);
+        return ResponseEntity.ok(new LoginResponseDTO(token, user.getId(), user.getEmail(), user.getRole().toString()));
     }
 
     @PostMapping("/resend-verification")

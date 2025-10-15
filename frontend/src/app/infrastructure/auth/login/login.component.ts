@@ -17,13 +17,13 @@ export class LoginComponent {
   ) {}
 
   loginForm = new FormGroup({
-    username: new FormControl('', [Validators.required]),
+    email: new FormControl('', [Validators.required, Validators.email]), 
     password: new FormControl('', [Validators.required]),
   });
 
   login(): void {
     const login: Login = {
-      username: this.loginForm.value.username || "",
+      email: this.loginForm.value.email || "",
       password: this.loginForm.value.password || "",
     };
 
