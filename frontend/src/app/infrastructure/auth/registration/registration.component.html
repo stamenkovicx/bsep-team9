@@ -11,7 +11,7 @@
         <mat-form-field>
             <mat-label>Email</mat-label>
             <input matInput formControlName="email" type="email"/>
-        </mat-form-field>
+        </mat-form-field>   
         
         <mat-form-field>
             <mat-label>Organization</mat-label>
@@ -20,8 +20,20 @@
         
         <mat-form-field>
             <mat-label>Password</mat-label>
-            <input matInput formControlName="password" type="password"/>
+            <input matInput formControlName="password" type="password" (input)="onPasswordChange()"/>
         </mat-form-field>
+        <!-- Password Strength Indicator -->
+        <div class="password-strength" *ngIf="registrationForm.get('password')?.value">
+            <div class="strength-bar">
+                <div class="strength-fill" 
+                    [style.width.%]="passwordStrength.percentage"
+                    [ngClass]="passwordStrength.class">
+                </div>
+            </div>
+            <p class="strength-text" [ngClass]="passwordStrength.class">
+                {{ passwordStrength.label }}
+            </p>
+        </div>
         
         <mat-form-field>
             <mat-label>Confirm Password</mat-label>

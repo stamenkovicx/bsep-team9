@@ -11,6 +11,12 @@ import { Router } from '@angular/router';
 })
 export class RegistrationComponent {
 
+  passwordStrength = {
+    percentage: 0,
+    label: '',
+    class: ''
+  };
+
   constructor(
     private authService: AuthService,
     private router: Router
@@ -75,4 +81,31 @@ export class RegistrationComponent {
     });
     }
   }
+
+  onPasswordChange(): void {
+    const password = this.registrationForm.get('password')?.value || '';
+    this.passwordStrength = this.calculatePasswordStrength(password);
+  }
+
+  calculatePasswordStrength(password: string): any {
+    let strength = 0;
+    
+    if (password.length >= 8) strength += 20;
+    if (password.length >= 12) strength += 10;
+    if (/[a-z]/.test(password)) strength += 20;
+    if (/[A-Z]/.test(password)) strength += 20;
+    if (/[0-9]/.test(password)) strength += 15;
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 15;
+    
+    if (strength < 40) {
+      return { percentage: strength, label: 'Weak', class: 'weak' };
+    } else if (strength < 60) {
+      return { percentage: strength, label: 'Fair', class: 'fair' };
+    } else if (strength < 80) {
+      return { percentage: strength, label: 'Good', class: 'good' };
+    } else {
+      return { percentage: 100, label: 'Strong', class: 'strong' };
+    }
+  }
+  
 }

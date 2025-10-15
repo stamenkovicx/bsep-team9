@@ -9,3 +9,46 @@ div {
     display:flex;
     flex-direction: column;
 }
+.password-strength {
+    margin-top: -10px;
+    margin-bottom: 15px;
+}
+
+.strength-bar {
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.strength-fill {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+
+.strength-fill.weak {
+    background-color: #f44336;
+}
+
+.strength-fill.fair {
+    background-color: #ff9800;
+}
+
+.strength-fill.good {
+    background-color: #2196f3;
+}
+
+.strength-fill.strong {
+    background-color: #4caf50;
+}
+
+.strength-text {
+    font-size: 12px;
+    margin: 0;
+}
+
+.strength-text.weak { color: #f44336; }
+.strength-text.fair { color: #ff9800; }
+.strength-text.good { color: #2196f3; }
+.strength-text.strong { color: #4caf50; }
