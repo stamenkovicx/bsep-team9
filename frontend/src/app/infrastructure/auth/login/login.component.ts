@@ -3,6 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
 import { Login } from '../model/login.model';
+import { environment } from 'src/env/environment';
 
 @Component({
   selector: 'xp-login',
@@ -10,6 +11,8 @@ import { Login } from '../model/login.model';
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
+
+  siteKey: string = environment.recaptchaSiteKey;
 
   constructor(
     private authService: AuthService,
@@ -19,20 +22,23 @@ export class LoginComponent {
   loginForm = new FormGroup({
     email: new FormControl('', [Validators.required, Validators.email]), 
     password: new FormControl('', [Validators.required]),
+    recaptchaToken: new FormControl('', [Validators.required]),
   });
 
   login(): void {
-    const login: Login = {
-      email: this.loginForm.value.email || "",
-      password: this.loginForm.value.password || "",
-    };
-
     if (this.loginForm.valid) {
-      this.authService.login(login).subscribe({
+      // Saljem celu vrednost forme, koja sadrzi i recaptchaToken
+      this.authService.login(this.loginForm.value as Login).subscribe({
         next: () => {
-          this.router.navigate(['/']);
+          this.router.navigate(['/home']); // Preusmeri na početnu stranicu nakon prijave
         },
+        error: (err) => {
+          // Prikazujemo grešku koju vraća backend
+          alert(err.error);
+        }
       });
+    } else {
+      alert('Please fill out all fields and complete the reCAPTCHA.');
     }
   }
 }

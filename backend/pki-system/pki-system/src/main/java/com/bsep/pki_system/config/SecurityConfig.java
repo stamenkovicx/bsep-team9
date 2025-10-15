@@ -5,14 +5,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
+@EnableMethodSecurity // 1. Uključuje method-level security (npr. @PreAuthorize)
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -34,12 +37,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(withDefaults()) // 2. Uključuje CORS konfiguraciju da popravi 403 grešku
+                .csrf(csrf -> csrf.disable()) // Isključuje CSRF, što je ispravno za JWT
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 3. Osigurava da je aplikacija stateless
                 .authorizeHttpRequests(auth -> auth
+                        // 4. Precizno definisane javne putanje
                         .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers("/api/test/public").permitAll() //test
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/test/public").permitAll()
+                        .anyRequest().authenticated() // Svi ostali zahtevi zahtevaju autentifikaciju
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

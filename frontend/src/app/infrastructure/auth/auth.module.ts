@@ -4,6 +4,7 @@ import { LoginComponent } from './login/login.component';
 import { MaterialModule } from '../material/material.module';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RegistrationComponent } from './registration/registration.component';
+import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
 
 
 
@@ -15,7 +16,9 @@ import { RegistrationComponent } from './registration/registration.component';
   imports: [
     CommonModule,
     MaterialModule,
-    ReactiveFormsModule
+    ReactiveFormsModule,
+    RecaptchaModule,
+    RecaptchaFormsModule
   ],
   exports: [
     LoginComponent
