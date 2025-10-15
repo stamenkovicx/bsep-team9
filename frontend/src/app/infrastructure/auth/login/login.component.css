@@ -1,15 +1,107 @@
-form {
-    margin-top:150px;
+/* Glavni kontejner sa suptilnim gradijentom */
+.login-container {
     display: flex;
     justify-content: center;
-}
-
-div {
-    width: 400px;
-    display:flex;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  }
+  
+  /* Stil za karticu sa animacijom */
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .login-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Header kartice */
+  mat-card-header {
+    padding-bottom: 24px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 24px;
+  }
+  
+  /* Avatar ikonica u headeru */
+  ::ng-deep .mat-card-header-text {
+    margin: 0 !important; /* Resetuje default Material stil */
+  }
+  
+  ::ng-deep mat-icon[mat-card-avatar] {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: #3f51b5; /* Primary boja */
+  }
+  
+  mat-card-title {
+    font-size: 28px;
+    font-weight: 500;
+  }
+  
+  mat-card-subtitle {
+    font-size: 16px;
+    color: #666;
+  }
+  
+  /* Forma unutar kartice */
+  .login-form {
+    display: flex;
     flex-direction: column;
-}
-
-p {
-    margin-top: 10px;
-}
+  }
+  
+  /* Polja za unos sa "outline" izgledom */
+  mat-form-field {
+    width: 100%;
+  }
+  
+  /* Dodatne ikonice unutar polja */
+  mat-icon[matSuffix] {
+    color: #aaa;
+  }
+  
+  /* reCAPTCHA kontejner za centriranje */
+  .recaptcha-container {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0;
+  }
+  
+  /* Dugme za prijavu sa animacijom */
+  .login-button {
+    width: 100%;
+    padding: 22px 0;
+    font-size: 16px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 16px;
+    transition: background-color 0.3s ease;
+  }
+  
+  /* Link za registraciju */
+  .signup-link {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+    color: #555;
+  }
+  
+  .signup-link a {
+    color: #3f51b5;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+  }
+  
+  .signup-link a:hover {
+    color: #303f9f;
+    text-decoration: underline;
+  }

@@ -1,22 +1,43 @@
-<form [formGroup]="loginForm" (ngSubmit)="login()">
-    <div>
-        <mat-form-field>
+<div class="login-container">
+    <mat-card class="login-card">
+      
+      <mat-card-header>
+        <mat-icon mat-card-avatar>lock</mat-icon>
+        <mat-card-title>Secure Sign In</mat-card-title>
+        <mat-card-subtitle>Enter your credentials to access your account</mat-card-subtitle>
+      </mat-card-header>
+  
+      <mat-card-content>
+        <form class="login-form" [formGroup]="loginForm" (ngSubmit)="login()">
+          
+          <mat-form-field appearance="outline">
             <mat-label>Email</mat-label>
-            <input matInput formControlName="email" type="email"/>
-        </mat-form-field>
-        <mat-form-field>
+            <input matInput formControlName="email" type="email" placeholder="your.email@example.com">
+            <mat-icon matSuffix>email</mat-icon>
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline">
             <mat-label>Password</mat-label>
-            <input matInput formControlName="password" type="password"/>
-        </mat-form-field>
-
-        <re-captcha
-            formControlName="recaptchaToken"
-            [siteKey]="siteKey">
-        </re-captcha>
-
-    <button color="primary" type="submit" mat-raised-button>Login</button>
-    <p>Don't have an account yet?<a href="/register">Sign Up</a></p>
-    </div>
-</form>
-
-
+            <input matInput formControlName="password" type="password">
+            <mat-icon matSuffix>vpn_key</mat-icon>
+          </mat-form-field>
+          
+          <div class="recaptcha-container">
+              <re-captcha
+                  formControlName="recaptchaToken"
+                  [siteKey]="siteKey">
+              </re-captcha>
+          </div>
+  
+          <button class="login-button" color="primary" type="submit" mat-raised-button [disabled]="!loginForm.valid">
+            Login
+          </button>
+          
+          <p class="signup-link">
+            Don't have an account yet? <a routerLink="/register">Sign Up</a>
+          </p>
+  
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
