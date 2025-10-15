@@ -1,6 +1,7 @@
 package com.bsep.pki_system.controller;
 
 import com.bsep.pki_system.dto.CreateCertificateDTO;
+import com.bsep.pki_system.jwt.UserPrincipal;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.model.CertificateType;
 import com.bsep.pki_system.model.User;
@@ -79,9 +80,12 @@ public class CertificateController {
     @PostMapping("/root")
     public ResponseEntity<?> createRootCertificate(
             @Valid @RequestBody CreateCertificateDTO request,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
 
         try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
             // Provjera da li je korisnik ADMIN (samo admin može kreirati Root)
             if (!user.getRole().equals(UserRole.ADMIN)) {
                 return ResponseEntity.status(403).body(Map.of(
