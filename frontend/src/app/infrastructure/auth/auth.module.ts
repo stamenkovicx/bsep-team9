@@ -5,6 +5,9 @@ import { MaterialModule } from '../material/material.module';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RegistrationComponent } from './registration/registration.component';
 import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
+import { MatCardModule } from '@angular/material/card';
+import { RouterModule } from '@angular/router';
+
 
 
 
@@ -18,10 +21,13 @@ import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
     MaterialModule,
     ReactiveFormsModule,
     RecaptchaModule,
-    RecaptchaFormsModule
+    RecaptchaFormsModule,
+    MatCardModule,
+    RouterModule
   ],
   exports: [
-    LoginComponent
+    LoginComponent,
+    MatCardModule
   ]
 })
 export class AuthModule { }

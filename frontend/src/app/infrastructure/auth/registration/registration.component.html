@@ -1,45 +1,66 @@
-<form [formGroup]="registrationForm" (ngSubmit)="register($event)">
-    <div>
-        <mat-form-field>
-            <mat-label>Name</mat-label>
-            <input matInput formControlName="name" type="text"/>
-        </mat-form-field>
-        <mat-form-field>
-            <mat-label>Surname</mat-label>
-            <input matInput formControlName="surname" type="text"/>
-        </mat-form-field>
-        <mat-form-field>
+<div class="registration-container">
+    <mat-card class="registration-card">
+      
+      <mat-card-header>
+        <mat-icon mat-card-avatar>person_add</mat-icon>
+        <mat-card-title>Create Your Account</mat-card-title>
+        <mat-card-subtitle>Fill in the details to get started</mat-card-subtitle>
+      </mat-card-header>
+  
+      <mat-card-content>
+        <form class="registration-form" [formGroup]="registrationForm" (ngSubmit)="register()">
+          
+          <div class="name-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Name</mat-label>
+              <input matInput formControlName="name" type="text">
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Surname</mat-label>
+              <input matInput formControlName="surname" type="text">
+            </mat-form-field>
+          </div>
+          
+          <mat-form-field appearance="outline">
             <mat-label>Email</mat-label>
-            <input matInput formControlName="email" type="email"/>
-        </mat-form-field>   
-        
-        <mat-form-field>
+            <input matInput formControlName="email" type="email" placeholder="your.email@example.com">
+            <mat-icon matSuffix>email</mat-icon>
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline">
             <mat-label>Organization</mat-label>
-            <input matInput formControlName="organization" type="text"/>
-        </mat-form-field>
-        
-        <mat-form-field>
+            <input matInput formControlName="organization" type="text">
+            <mat-icon matSuffix>business</mat-icon>
+          </mat-form-field>
+          
+          <mat-form-field appearance="outline">
             <mat-label>Password</mat-label>
-            <input matInput formControlName="password" type="password" (input)="onPasswordChange()"/>
-        </mat-form-field>
-        <!-- Password Strength Indicator -->
-        <div class="password-strength" *ngIf="registrationForm.get('password')?.value">
+            <input matInput formControlName="password" type="password" (input)="onPasswordChange()">
+            <mat-icon matSuffix>vpn_key</mat-icon>
+          </mat-form-field>
+          
+          <div class="password-strength" *ngIf="registrationForm.get('password')?.value">
             <div class="strength-bar">
-                <div class="strength-fill" 
-                    [style.width.%]="passwordStrength.percentage"
-                    [ngClass]="passwordStrength.class">
-                </div>
+              <div class="strength-fill" [style.width.%]="passwordStrength.percentage" [ngClass]="passwordStrength.class"></div>
             </div>
-            <p class="strength-text" [ngClass]="passwordStrength.class">
-                {{ passwordStrength.label }}
-            </p>
-        </div>
-        
-        <mat-form-field>
+            <p class="strength-text" [ngClass]="passwordStrength.class">{{ passwordStrength.label }}</p>
+          </div>
+          
+          <mat-form-field appearance="outline">
             <mat-label>Confirm Password</mat-label>
-            <input matInput formControlName="confirmPassword" type="password"/>
-        </mat-form-field>
-        
-        <button color="primary" type="submit" mat-raised-button>Register</button>
-    </div>
-</form>
+            <input matInput formControlName="confirmPassword" type="password">
+            <mat-icon matSuffix>vpn_key</mat-icon>
+          </mat-form-field>
+          
+          <button class="register-button" color="primary" type="submit" mat-raised-button [disabled]="!registrationForm.valid">
+            Register
+          </button>
+          
+          <p class="signin-link">
+            Already have an account? <a routerLink="/login">Sign In</a>
+          </p>
+  
+        </form>
+      </mat-card-content>
+    </mat-card>
+  </div>
