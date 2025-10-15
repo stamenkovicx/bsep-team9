@@ -15,4 +15,8 @@ public class LoginDTO {
 
     @NotBlank(message = "Password is required")
     private String password;
+
+    @NotBlank(message = "reCAPTCHA token is required")
+    private String recaptchaToken;
+
 }

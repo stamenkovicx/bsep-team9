@@ -7,6 +7,7 @@ import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.service.EmailVerificationService;
+import com.bsep.pki_system.service.RecaptchaService;
 import com.bsep.pki_system.service.UserService;
 import com.bsep.pki_system.validator.PasswordValidator;
 import jakarta.validation.Valid;
@@ -24,15 +25,18 @@ public class AuthController {
     private final JwtService jwtService;
     private final PasswordValidator passwordValidator;
     private final EmailVerificationService emailVerificationService;
+    private final RecaptchaService recaptchaService;
 
     public AuthController(UserService userService,
                           JwtService jwtService,
                           PasswordValidator passwordValidator,
-                          EmailVerificationService emailVerificationService) {
+                          EmailVerificationService emailVerificationService,
+                          RecaptchaService recaptchaService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.passwordValidator = passwordValidator;
         this.emailVerificationService = emailVerificationService;
+        this.recaptchaService = recaptchaService;
     }
 
     @PostMapping("/register")
@@ -118,6 +122,11 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginDTO request) {
+
+        if (!recaptchaService.verify(request.getRecaptchaToken())) {
+            return ResponseEntity.badRequest().body("reCAPTCHA verification failed");
+        }
+
         User user = userService.login(request.getEmail(), request.getPassword());
 
         if (user == null) {

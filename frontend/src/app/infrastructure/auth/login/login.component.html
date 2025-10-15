@@ -8,6 +8,12 @@
             <mat-label>Password</mat-label>
             <input matInput formControlName="password" type="password"/>
         </mat-form-field>
+
+        <re-captcha
+            formControlName="recaptchaToken"
+            [siteKey]="siteKey">
+        </re-captcha>
+
     <button color="primary" type="submit" mat-raised-button>Login</button>
     <p>Don't have an account yet?<a href="/register">Sign Up</a></p>
     </div>
