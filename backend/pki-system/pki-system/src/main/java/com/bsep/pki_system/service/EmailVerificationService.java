@@ -1,8 +1,11 @@
 package com.bsep.pki_system.service;
 
 import com.bsep.pki_system.model.User;
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,21 +28,27 @@ public class EmailVerificationService {
         return LocalDateTime.now().plusHours(24); // Token važi 24 sata
     }
 
-    public void sendVerificationEmail(User user, String token) {
+    public void sendVerificationEmail(User user, String token) throws MessagingException {
         String verificationLink = "http://localhost:8089/auth/verify?token=" + token;
 
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(user.getEmail());
-        message.setSubject("Verify Your Account");
-        message.setText("Hello " + user.getName() + ",\n\n" +
-                "Thank you for registering. Please click the link below to verify your account:\n\n" +
-                verificationLink + "\n\n" +
-                "This link will expire in 24 hours.\n\n" +
-                "If you did not register for this account, please ignore this email.\n\n" +
-                "Best regards,\n" +
-                "PKI System Team");
+        MimeMessage mimeMessage = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
 
-        mailSender.send(message);
+        // Jednostavan HTML sadržaj bez stilova
+        String htmlContent = "<h3>Hello " + user.getName() + ",</h3>" +
+                "<p>Thank you for registering. Please click the link below to verify your account:</p>" +
+                "<p><a href='" + verificationLink + "'>" + verificationLink + "</a></p>" +
+                "<br>" +
+                "<p>This link will expire in 24 hours.</p>" +
+                "<p>If you did not create an account, please ignore this email.</p>" +
+                "<br>" +
+                "<p>Best regards,<br>PKI System Team</p>";
+
+        helper.setTo(user.getEmail());
+        helper.setSubject("Verify Your Account - PKI System");
+        helper.setText(htmlContent, true); // true i dalje znači da je format HTML
+
+        mailSender.send(mimeMessage);
     }
 
     public boolean isTokenExpired(LocalDateTime expiryDate) {
