@@ -8,6 +8,7 @@ import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.service.CertificateGeneratorService;
 import com.bsep.pki_system.service.CertificateService;
 import com.bsep.pki_system.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -77,7 +78,7 @@ public class CertificateController {
 
     @PostMapping("/root")
     public ResponseEntity<?> createRootCertificate(
-            @RequestBody CreateCertificateDTO request,
+            @Valid @RequestBody CreateCertificateDTO request,
             @AuthenticationPrincipal User user) {
 
         try {
@@ -92,6 +93,12 @@ public class CertificateController {
             if (request.getValidFrom().after(request.getValidTo())) {
                 return ResponseEntity.badRequest().body(Map.of(
                         "message", "Valid from date must be before valid to date"
+                ));
+            }
+
+            if (request.getBasicConstraints() == null || !request.getBasicConstraints().toUpperCase().contains("CA:TRUE")) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Root certificate must have CA:TRUE basic constraints"
                 ));
             }
 
@@ -119,5 +126,46 @@ public class CertificateController {
     public ResponseEntity<List<Certificate>> getAllRootCertificates() {
         List<Certificate> rootCertificates = certificateService.findByType(CertificateType.ROOT);
         return ResponseEntity.ok(rootCertificates);
+    }
+
+    // preuzimanje sertifikata:
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<?> downloadCertificate(@PathVariable Long id) {
+        try {
+            Certificate certificate = certificateService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+            // Generisanje PEM formata sertifikata
+            String pemContent = generatePemContent(certificate);
+
+            return ResponseEntity.ok()
+                    .header("Content-Type", "application/x-pem-file")
+                    .header("Content-Disposition",
+                            "attachment; filename=certificate_" + certificate.getSerialNumber() + ".pem")
+                    .body(pemContent);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error downloading certificate: " + e.getMessage()
+            ));
+        }
+    }
+
+    private String generatePemContent(Certificate certificate) {
+        // Za sada vraćamo osnovne podatke u PEM-like formatu
+        // Kasnije ćemo dodati stvarni X509 sertifikat iz keystore-a
+        StringBuilder pem = new StringBuilder();
+        pem.append("-----BEGIN CERTIFICATE INFO-----\n");
+        pem.append("Subject: ").append(certificate.getSubject()).append("\n");
+        pem.append("Issuer: ").append(certificate.getIssuer()).append("\n");
+        pem.append("Serial Number: ").append(certificate.getSerialNumber()).append("\n");
+        pem.append("Valid From: ").append(certificate.getValidFrom()).append("\n");
+        pem.append("Valid To: ").append(certificate.getValidTo()).append("\n");
+        pem.append("Type: ").append(certificate.getType()).append("\n");
+        pem.append("Public Key: ").append(certificate.getPublicKey()).append("\n");
+        pem.append("-----END CERTIFICATE INFO-----\n");
+
+        return pem.toString();
     }
 }
