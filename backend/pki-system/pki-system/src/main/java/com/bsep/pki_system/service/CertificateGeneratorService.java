@@ -41,6 +41,9 @@ public class CertificateGeneratorService {
         this.keystoreService = keystoreService;
     }
 
+    public KeystoreService getKeystoreService() {
+        return keystoreService;
+    }
     public Certificate generateRootCertificate(CreateCertificateDTO request, User owner) throws Exception {
         // 1. Generisanje para ključeva
         KeyPair keyPair = generateKeyPair();
@@ -229,4 +232,5 @@ public class CertificateGeneratorService {
 
         return chain.toArray(new java.security.cert.Certificate[0]);
     }
+
 }
