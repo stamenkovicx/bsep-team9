@@ -5,6 +5,8 @@ import { NavbarComponent } from './navbar/navbar.component';
 import { MaterialModule } from 'src/app/infrastructure/material/material.module';
 import { RouterModule } from '@angular/router';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatCardModule } from "@angular/material/card";
+import { FormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
@@ -15,8 +17,12 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     CommonModule,
     MaterialModule,
     RouterModule,
-    MatProgressSpinnerModule
-  ],
+    MatProgressSpinnerModule,
+    MatCardModule,
+    FormsModule,
+  
+
+],
   exports: [
     NavbarComponent,
     HomeComponent

@@ -18,6 +18,43 @@
       <p>Manage your certificates and certificate authorities</p>
     </div>
 
+    <!-- 2FA SEKCIJA -->
+<mat-card style="margin: 20px 0;">
+  <mat-card-header>
+    <mat-card-title>🔐 Two-Factor Authentication</mat-card-title>
+  </mat-card-header>
+  
+  <mat-card-content>
+    <!-- AKO NIJE ZAPOČET SETUP -->
+    <div *ngIf="!showQRCode">
+      <p>Add extra security to your account.</p>
+      <button mat-raised-button color="accent" (click)="enable2FA()">
+        Enable 2FA
+      </button>
+    </div>
+
+    <!-- AKO JE ZAPOČET SETUP -->
+    <div *ngIf="showQRCode">
+      <h3>Step 1: Scan this QR code</h3>
+      <img [src]="qrCodeUrl" alt="QR Code" style="max-width: 300px;">
+      
+      <h3>Step 2: Enter code from app</h3>
+      <mat-form-field>
+        <input matInput [(ngModel)]="verificationCode" placeholder="000000" maxlength="6">
+      </mat-form-field>
+      
+      <div>
+        <button mat-raised-button color="primary" (click)="verify2FACode()">
+          Verify
+        </button>
+        <button mat-button (click)="cancel2FASetup()">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </mat-card-content>
+</mat-card>
+
     <div class="quick-actions">
       <!-- ADMIN / CA -->
       <div *ngIf="isAdmin() || isCA()" class="action-card" routerLink="/certificates">

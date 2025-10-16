@@ -29,7 +29,7 @@ public class User {
     private String password;
     private String organization;
 
-    private boolean enabled = false; // Korisnik je neaktivan dok ne potvrdi email
+    private Boolean enabled = false; // Korisnik je neaktivan dok ne potvrdi email
 
     @Enumerated(EnumType.STRING)
     private UserRole role;
@@ -37,5 +37,12 @@ public class User {
     // Email verifikacija
     private String verificationToken;
     private LocalDateTime tokenExpiryDate;
+
+    @Column(name = "is_2fa_enabled")
+    private Boolean is2faEnabled = false;
+
+    // Dozvoljava NULL vrednost, što je u redu za String
+    @Column(name = "two_factor_secret")
+    private String twoFactorSecret;
 
 }

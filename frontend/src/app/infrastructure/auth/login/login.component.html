@@ -21,17 +21,34 @@
             <input matInput formControlName="password" type="password">
             <mat-icon matSuffix>vpn_key</mat-icon>
           </mat-form-field>
+
+          <!-- NOVO POLJE ZA 2FA KOD -->
+        <mat-form-field appearance="outline" *ngIf="twoFactorRequired">
+          <mat-label>2FA Code</mat-label>
+          <input matInput 
+                 [formControl]="twoFactorCodeControl" 
+                 type="text" 
+                 placeholder="Enter 6-digit code">
+          <mat-icon matSuffix>verified_user</mat-icon>
+          <mat-error *ngIf="twoFactorCodeControl.invalid && twoFactorCodeControl.touched">
+            2FA Code must be 6 digits and contain only numbers.
+          </mat-error>
+        </mat-form-field>
+        <!-- KRAJ NOVOG POLJA ZA 2FA KOD -->
           
           <div class="recaptcha-container">
               <re-captcha
+                  #captchaElem
                   formControlName="recaptchaToken"
                   [siteKey]="siteKey">
+                  [timeout]="60000">
               </re-captcha>
           </div>
   
-          <button class="login-button" color="primary" type="submit" mat-raised-button [disabled]="!loginForm.valid">
-            Login
-          </button>
+          <button class="login-button" color="primary" type="submit" mat-raised-button 
+                [disabled]="(twoFactorRequired ? twoFactorCodeControl.invalid : loginForm.invalid)">
+          {{ twoFactorRequired ? 'Verify & Login' : 'Login' }}
+        </button>
           
           <p class="signup-link">
             Don't have an account yet? <a routerLink="/register">Sign Up</a>

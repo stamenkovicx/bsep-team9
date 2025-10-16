@@ -10,6 +10,9 @@ import { AuthenticationResponse } from './model/authentication-response.model';
 import { User } from './model/user.model';
 import { Registration } from './model/registration.model';
 import { LoginResponse } from './model/login-response.model';
+import { TwoFACodeDTO } from './dto/TwoFACodeDTO';
+import { LoginPayload } from './model/LoginPayload';
+
 
 @Injectable({
   providedIn: 'root'
@@ -21,9 +24,10 @@ export class AuthService {
     private tokenStorage: TokenStorage,
     private router: Router) { }
 
-    login(login: Login): Observable<LoginResponse> {
+    login(loginPayload: LoginPayload): Observable<LoginResponse> {
       return this.http
-        .post<LoginResponse>(environment.apiHost + 'auth/login', login)
+        // Šaljemo LoginPayload koji odgovara LoginWith2FADTO na backendu
+        .post<LoginResponse>(environment.apiHost + 'auth/login', loginPayload) 
         .pipe(
           tap((response) => {
             // 2. Cuvamo token iz odgovora
@@ -39,6 +43,7 @@ export class AuthService {
           })
         );
     }
+
 
     register(registration: Registration): Observable<{message: string}> {
       return this.http.post<{message: string}>(
@@ -85,5 +90,20 @@ export class AuthService {
     
     const jwtHelperService = new JwtHelperService();
     return !jwtHelperService.isTokenExpired(token);
+  }
+  setup2fa(): Observable<{ qrCodeUrl: string }> {
+    // Backend identifikuje korisnika preko JWT tokena
+    return this.http.post<{ qrCodeUrl: string }>(
+      environment.apiHost + 'auth/2fa/setup', 
+      {} 
+    );
+  }
+
+  verify2fa(code: string): Observable<{ message: string }> {
+    const dto: TwoFACodeDTO = { code: code };
+    return this.http.post<{ message: string }>(
+      environment.apiHost + 'auth/2fa/verify', 
+      dto
+    );
   }
 }
