@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CertificateService } from '../../certificates/certificate.service';
 import { Certificate } from '../../certificates/models/certificate.interface';
 import { AuthService } from 'src/app/infrastructure/auth/auth.service';
+import { User } from 'src/app/infrastructure/auth/model/user.model';
 
 interface DashboardCertificate {
   subjectCommonName: string;
@@ -17,26 +18,52 @@ interface DashboardCertificate {
 export class HomeComponent implements OnInit {
   recentCertificates: Certificate[] = [];
   isLoading = true;
+  currentUser: User | null = null;
 
   constructor(private certificateService: CertificateService, private authService: AuthService) {}
 
   ngOnInit(): void {
-    this.loadRecentCertificates();
+    this.loadCurrentUser();
   }
 
-  loadRecentCertificates(): void {
-    this.certificateService.getAllCertificates().subscribe({
-      next: (certificates) => {
-        // Uzmi posljednja 3 sertifikata za "recent"
-        this.recentCertificates = certificates.slice(-3).reverse();
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('Error loading certificates:', error);
-        this.isLoading = false;
-      }
+  loadCurrentUser(): void {
+    this.authService.user$.subscribe(user => {
+      this.currentUser = user;
+      // Tek kada dobijemo usera, učitavamo sertifikate
+      this.loadRecentCertificates();
     });
   }
+
+  // URADJENO SAMO ZA ADMINA
+  loadRecentCertificates(): void {
+    if(this.isAdmin())
+    {
+      this.certificateService.getAllCertificates().subscribe({
+        next: (certificates) => {
+          // Uzmi posljednja 3 sertifikata za "recent"
+          this.recentCertificates = certificates.slice(-3).reverse();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Error loading certificates:', error);
+          this.isLoading = false;
+        }
+      });
+    } // else if ... dodati za ostale tipove 
+  }
+
+  isAdmin(): boolean {
+    return this.currentUser?.role === 'ADMIN'
+  }
+
+  isCA(): boolean {
+    return this.currentUser?.role === 'CA'
+  }
+
+  isBasic(): boolean {
+      return this.currentUser?.role === 'BASIC'
+  }
+
 
   isLoggedIn(): boolean {
     return this.authService.isLoggedIn();

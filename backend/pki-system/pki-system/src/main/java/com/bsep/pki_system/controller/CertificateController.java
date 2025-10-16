@@ -11,6 +11,7 @@ import com.bsep.pki_system.service.CertificateService;
 import com.bsep.pki_system.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,13 +33,18 @@ public class CertificateController {
     }
 
     // GET - Prikaz svih sertifikata (za admina)
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<List<Certificate>> getAllCertificates() {
         List<Certificate> certificates = certificateService.findAll();
         return ResponseEntity.ok(certificates);
     }
 
+    // TODO: GET - Prikaz sertifikata iz njegovog lanca (za CA korisnika)
+    // TODO: GET - Prikaz EE sertifikata (za obicnog korisnika)
+
     // GET - Sertifikati po tipu
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/type/{type}")
     public ResponseEntity<List<Certificate>> getCertificatesByType(@PathVariable CertificateType type) {
         List<Certificate> certificates = certificateService.findByType(type);
@@ -46,6 +52,7 @@ public class CertificateController {
     }
 
     // GET - Sertifikati trenutno ulogovanog korisnika
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/my-certificates")
     public ResponseEntity<List<Certificate>> getMyCertificates(@AuthenticationPrincipal User user) {
         List<Certificate> certificates = certificateService.findByOwner(user);
@@ -53,6 +60,7 @@ public class CertificateController {
     }
 
     // GET - Provjera validnosti sertifikata
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/valid")
     public ResponseEntity<Map<String, Boolean>> isCertificateValid(@PathVariable Long id) {
         boolean isValid = certificateService.isCertificateValid(id);
@@ -61,15 +69,25 @@ public class CertificateController {
 
     // POST - Revokacija(povlacenje) sertifikata
     @PostMapping("/{id}/revoke")
-    public ResponseEntity<?> revokeCertificate(@PathVariable Long id, @RequestBody Map<String, String> request) {
+    public ResponseEntity<?> revokeCertificate(@PathVariable Long id, @RequestBody Map<String, String> request, @AuthenticationPrincipal User user) {
+        // Provjera autorizacije
+        // TODO: ovo zavrsiti kad se bude radila revokacija
+        /*if (!certificateService.canUserRevokeCertificate(id, user)) {
+            return ResponseEntity.status(403).body(Map.of("message", "Not authorized to revoke this certificate"));
+        }*/
+
         String reason = request.get("reason");
         certificateService.revokeCertificate(id, reason);
         return ResponseEntity.ok(Map.of("message", "Certificate revoked successfully"));
     }
 
     // GET - Pojedinačni sertifikat
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
-    public ResponseEntity<Certificate> getCertificate(@PathVariable Long id) {
+    public ResponseEntity<Certificate> getCertificate(@PathVariable Long id,  @AuthenticationPrincipal User user) {
+        if (!certificateService.canUserAccessCertificate(id, user)) {
+            return ResponseEntity.status(403).build();
+        }
         return certificateService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -77,6 +95,7 @@ public class CertificateController {
 
     // metode za ROOT sertifikat:
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/root")
     public ResponseEntity<?> createRootCertificate(
             @Valid @RequestBody CreateCertificateDTO request,
@@ -85,13 +104,6 @@ public class CertificateController {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
-
-            // Provjera da li je korisnik ADMIN (samo admin može kreirati Root)
-            if (!user.getRole().equals(UserRole.ADMIN)) {
-                return ResponseEntity.status(403).body(Map.of(
-                        "message", "Only ADMIN users can create Root certificates"
-                ));
-            }
 
             // Validacija datuma
             if (request.getValidFrom().after(request.getValidTo())) {
@@ -126,17 +138,23 @@ public class CertificateController {
     }
 
     // GET - Svi Root sertifikati
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/root")
     public ResponseEntity<List<Certificate>> getAllRootCertificates() {
         List<Certificate> rootCertificates = certificateService.findByType(CertificateType.ROOT);
         return ResponseEntity.ok(rootCertificates);
     }
 
-    // preuzimanje sertifikata:
-
+    // preuzimanje sertifikata (svi ulogovani - sa proverom autorizacije)
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/download")
-    public ResponseEntity<?> downloadCertificate(@PathVariable Long id) {
+    public ResponseEntity<?> downloadCertificate(@PathVariable Long id, @AuthenticationPrincipal User user) {
         try {
+            // Provjera autorizacije
+            if (!certificateService.canUserAccessCertificate(id, user)) {
+                return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
+            }
+
             Certificate certificate = certificateService.findById(id)
                     .orElseThrow(() -> new RuntimeException("Certificate not found"));
 

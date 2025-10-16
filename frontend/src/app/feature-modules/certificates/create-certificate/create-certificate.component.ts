@@ -3,6 +3,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CertificateService } from '../certificate.service';
 import { CreateCertificateDTO } from '../models/create-certificate.dto';
+import { AuthService } from 'src/app/infrastructure/auth/auth.service';
+import { User } from 'src/app/infrastructure/auth/model/user.model';
 
 @Component({
   selector: 'app-create-certificate',
@@ -15,17 +17,39 @@ export class CreateCertificateComponent implements OnInit {
   selectedType: string = 'ROOT'; // default vrijednost
   showSuccessMessage = false;  
   successData: any = null;
+  currentUser: User | null = null;
 
   constructor(
     private fb: FormBuilder,
     private certificateService: CertificateService,
-    private router: Router
+    private router: Router,
+    private authService: AuthService
   ) {
     this.certificateForm = this.createForm();
   }
 
   ngOnInit(): void {
+    this.loadCurrentUser();
+
+    if (this.isCA()) {
+      this.certificateForm.patchValue({ certificateType: 'INTERMEDIATE' });
+      this.selectedType = 'INTERMEDIATE';
+    } else {
+      this.certificateForm.patchValue({ certificateType: 'ROOT' });
+      this.selectedType = 'ROOT';
+    }
+
     this.onTypeChange();
+  }
+  
+  isCA(): boolean {
+    return this.currentUser?.role === 'CA'
+  }
+
+  loadCurrentUser(): void {
+    this.authService.user$.subscribe(user => {
+      this.currentUser = user;
+    });
   }
 
   createForm(): FormGroup {
