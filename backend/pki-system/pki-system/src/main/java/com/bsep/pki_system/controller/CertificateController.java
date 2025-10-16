@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -148,8 +149,11 @@ public class CertificateController {
     // preuzimanje sertifikata (svi ulogovani - sa proverom autorizacije)
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/download")
-    public ResponseEntity<?> downloadCertificate(@PathVariable Long id, @AuthenticationPrincipal User user) {
+    public ResponseEntity<?> downloadCertificate(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+            
             // Provjera autorizacije
             if (!certificateService.canUserAccessCertificate(id, user)) {
                 return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
@@ -161,11 +165,13 @@ public class CertificateController {
             // Generisanje PEM formata sertifikata
             String pemContent = generatePemContent(certificate);
 
+            byte[] pemBytes = pemContent.getBytes(StandardCharsets.UTF_8);
+
             return ResponseEntity.ok()
                     .header("Content-Type", "application/x-pem-file")
                     .header("Content-Disposition",
                             "attachment; filename=certificate_" + certificate.getSerialNumber() + ".pem")
-                    .body(pemContent);
+                    .body(pemBytes);
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of(
