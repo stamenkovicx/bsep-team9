@@ -1,9 +1,18 @@
 <mat-toolbar color="primary">
     <div>
         <div id="buttons">
+            <button 
+                *ngIf="user && user.email !== ''" 
+                color="accent" 
+                mat-raised-button 
+                (click)="open2FADialog()" 
+                class="navbar-2fa-btn">
+                <mat-icon>security</mat-icon>
+                2FA Setup
+            </button>
             <button *ngIf="user && user.email === ''" color="accent" mat-raised-button [routerLink]="['login']">Login</button>
             <button *ngIf="user && user.email !== ''" color="accent" mat-raised-button (click)="onLogout()">Logout</button>
             <button color="primary" mat-raised-button [routerLink]="['home']">Home</button>
         </div>
     </div>
-</mat-toolbar>
+</mat-toolbar>  

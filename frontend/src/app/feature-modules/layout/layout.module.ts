@@ -20,7 +20,6 @@ import { FormsModule } from '@angular/forms';
     MatProgressSpinnerModule,
     MatCardModule,
     FormsModule,
-  
 
 ],
   exports: [

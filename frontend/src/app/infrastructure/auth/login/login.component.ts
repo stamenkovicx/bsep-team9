@@ -13,8 +13,7 @@ import { LoginPayload } from '../model/LoginPayload';
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
-
-
+  
   siteKey: string = environment.recaptchaSiteKey;
   private savedRecaptchaToken: string | null = null;
 

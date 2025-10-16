@@ -1,0 +1,38 @@
+<h2 mat-dialog-title>🔐 Two-Factor Authentication Setup</h2>
+
+<mat-dialog-content>
+  <div *ngIf="!showQRCode" class="dialog-initial-setup">
+    <p>Add an extra layer of security to your account. You will need a Time-based One-Time Password (TOTP) app like Google Authenticator or Authy.</p>
+    <button mat-raised-button color="accent" (click)="enable2FA()">
+      Start Setup
+    </button>
+  </div>
+
+  <div *ngIf="showQRCode" class="dialog-setup-in-progress">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3>Step 1: Scan this QR code</h3>
+        <img [src]="qrCodeUrl" alt="QR Code" style="max-width: 250px; border: 1px solid #ccc; padding: 10px; border-radius: 8px;">
+    </div>
+    
+    <h3>Step 2: Enter code from app</h3>
+    <mat-form-field appearance="outline" style="width: 100%;">
+      <mat-label>Verification Code</mat-label>
+      <input matInput [(ngModel)]="verificationCode" placeholder="000000" maxlength="6">
+      <mat-icon matSuffix>vpn_key</mat-icon>
+    </mat-form-field>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()" *ngIf="!showQRCode">
+    Close
+  </button>
+  <ng-container *ngIf="showQRCode">
+    <button mat-button (click)="onCancel()">
+      Cancel
+    </button>
+    <button mat-raised-button color="primary" [disabled]="verificationCode.length !== 6" (click)="verify2FACode()">
+      Verify & Enable
+    </button>
+  </ng-container>
+</mat-dialog-actions>
