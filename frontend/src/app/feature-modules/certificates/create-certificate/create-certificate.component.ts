@@ -24,7 +24,9 @@ export class CreateCertificateComponent implements OnInit {
     this.certificateForm = this.createForm();
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.onTypeChange();
+  }
 
   createForm(): FormGroup {
     return this.fb.group({
