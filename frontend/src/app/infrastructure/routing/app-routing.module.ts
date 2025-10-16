@@ -4,13 +4,20 @@ import { HomeComponent } from 'src/app/feature-modules/layout/home/home.componen
 import { LoginComponent } from '../auth/login/login.component';
 import { AuthGuard } from '../auth/auth.guard';
 import { RegistrationComponent } from '../auth/registration/registration.component';
+import { CreateCertificateComponent } from 'src/app/feature-modules/certificates/create-certificate/create-certificate.component';
 
 const routes: Routes = [
-  {path: 'home', component: HomeComponent, canActivate: [AuthGuard]},
+  {path: 'home', component: HomeComponent},
   {path: 'login', component: LoginComponent},
   {path: 'register', component: RegistrationComponent},
-    // 2. Podrazumevana ruta: Preusmerava praznu putanju na stranicu za prijavu
-  {path: '', redirectTo: '/login', pathMatch: 'full'},
+  {
+    path: 'certificates',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('src/app/feature-modules/certificates/certificates.module').then(m => m.CertificatesModule)
+  },   
+ // 2. Podrazumevana ruta: Preusmerava praznu putanju na glavnu stranicu
+  {path: '', redirectTo: '/home', pathMatch: 'full'},
   // 3. Džoker ruta (opciono): Preusmerava sve nepoznate URL-ove na početnu stranicu
   {path: '**', redirectTo: '/home'}
 ];

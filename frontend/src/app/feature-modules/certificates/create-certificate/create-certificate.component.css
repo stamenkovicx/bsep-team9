@@ -1,0 +1,242 @@
+/* Glavni kontejner sa suptilnim gradijentom */
+.certificate-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+/* Stil za karticu */
+.certificate-card {
+  width: 100%;
+  max-width: 700px;
+  padding: 32px 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Header kartice */
+mat-card-header {
+  display: flex;
+  justify-content: center;  
+  align-items: center;
+  gap: 16px;  
+}
+
+::ng-deep .mat-card-header-text {
+  text-align: center;  
+}
+
+::ng-deep mat-icon[mat-card-avatar] {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: #3f51b5;
+}
+
+mat-card-title {
+  font-size: 28px;
+  font-weight: 500;
+}
+
+mat-card-subtitle {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Forma */
+.certificate-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sekcije forme */
+.form-section {
+  margin-bottom: 32px;
+  margin-top: 32px;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.form-section h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.form-section h4 {
+  margin: 16px 0 12px 0;
+  color: #555;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Redovi u formi */
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-row mat-form-field {
+  flex: 1;
+}
+
+.country-field {
+  max-width: 120px;
+}
+
+/* Checkbox grupe */
+.checkbox-group {
+  margin-bottom: 16px;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 24px;
+}
+
+.key-usage-section {
+  margin-top: 20px;
+}
+
+/* Dugmici */
+.form-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.cancel-button {
+  min-width: 120px;
+}
+
+.create-button {
+  min-width: 180px;
+  padding: 0 24px;
+}
+
+/* Success Message Styles */
+.success-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.success-message {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+}
+
+.success-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: #4caf50;
+  margin-bottom: 20px;
+}
+
+.success-message h2 {
+  margin: 0 0 24px 0;
+  color: #333;
+  font-size: 1.8rem;
+}
+
+.success-details {
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.certificate-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-weight: 500;
+  color: #555;
+}
+
+.value {
+  color: #333;
+  font-weight: 600;
+}
+
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.download-btn, .another-btn, .back-btn {
+  width: 100%;
+  padding: 12px;
+}
+
+.download-btn mat-icon {
+  margin-right: 8px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .certificate-card {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .country-field {
+    max-width: none;
+  }
+
+  .success-message {
+    padding: 30px 20px;
+    margin: 20px;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    gap: 4px;
+  }
+}

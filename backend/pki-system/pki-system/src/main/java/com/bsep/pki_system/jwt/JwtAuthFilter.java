@@ -1,5 +1,6 @@
 package com.bsep.pki_system.jwt;
 
+import com.bsep.pki_system.model.UserRole;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -39,9 +40,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (jwtService.validateToken(token)) {
             Claims claims = jwtService.getClaims(token);
             String email = claims.getSubject();
+            Long userId = claims.get("userId", Long.class);
+            UserRole role = UserRole.valueOf(claims.get("role", String.class));
+
+            UserPrincipal principal = new UserPrincipal(userId, email, role);
 
             UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
+                    new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
             authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authToken);
         }

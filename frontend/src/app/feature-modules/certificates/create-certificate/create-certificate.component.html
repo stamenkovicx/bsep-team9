@@ -1,0 +1,198 @@
+<div class="certificate-container">
+  <mat-card class="certificate-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>security</mat-icon>
+      <mat-card-title>Create Root Certificate</mat-card-title>
+      <mat-card-subtitle>Create a new Root Certificate Authority</mat-card-subtitle>
+    </mat-card-header>
+
+    <form [formGroup]="certificateForm" (ngSubmit)="onSubmit()" class="certificate-form">
+      <!-- Certificate Type Select -->
+      <div class="form-section">
+        <h3>Certificate Type</h3>
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Certificate Type *</mat-label>
+            <mat-select formControlName="certificateType" (selectionChange)="onTypeChange()">
+              <mat-option value="ROOT">Root CA</mat-option>
+              <mat-option value="INTERMEDIATE">Intermediate CA</mat-option>
+              <mat-option value="END_ENTITY">End Entity</mat-option>
+            </mat-select>
+            <mat-error *ngIf="certificateForm.get('certificateType')?.hasError('required')">
+              Certificate type is required
+            </mat-error>
+          </mat-form-field>
+        </div>
+        
+        <!-- Description based on type -->
+        <div class="type-description" *ngIf="selectedType === 'ROOT'">
+          <p>📌 <strong>Root CA</strong> - Self-signed certificate at the top of the trust chain</p>
+        </div>
+        <div class="type-description" *ngIf="selectedType === 'INTERMEDIATE'">
+          <p>📌 <strong>Intermediate CA</strong> - Signed by Root CA, can issue other certificates</p>
+        </div>
+        <div class="type-description" *ngIf="selectedType === 'END_ENTITY'">
+          <p>📌 <strong>End Entity</strong> - End-user certificate for servers, users, or devices</p>
+        </div>
+      </div>
+        <!-- Subject Information -->
+      <div class="form-section">
+        <h3>Subject Information</h3>
+        
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Common Name *</mat-label>
+            <input matInput formControlName="subjectCommonName" placeholder="My Root CA">
+            <mat-error *ngIf="certificateForm.get('subjectCommonName')?.hasError('required')">
+              Common Name is required
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Organization *</mat-label>
+            <input matInput formControlName="subjectOrganization" placeholder="BSEP Company">
+            <mat-error *ngIf="certificateForm.get('subjectOrganization')?.hasError('required')">
+              Organization is required
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Organizational Unit</mat-label>
+            <input matInput formControlName="subjectOrganizationalUnit" placeholder="IT Department">
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline" class="country-field">
+            <mat-label>Country *</mat-label>
+            <input matInput formControlName="subjectCountry" placeholder="RS" maxlength="2">
+            <mat-error *ngIf="certificateForm.get('subjectCountry')?.hasError('required')">
+              Country is required
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>State</mat-label>
+            <input matInput formControlName="subjectState" placeholder="Serbia">
+          </mat-form-field>
+        </div>
+
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Locality</mat-label>
+            <input matInput formControlName="subjectLocality" placeholder="Novi Sad">
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Email</mat-label>
+            <input matInput formControlName="subjectEmail" placeholder="ca@bsep.com" type="email">
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Validity Period -->
+      <div class="form-section">
+        <h3>Validity Period</h3>
+        <div class="form-row">
+          <mat-form-field appearance="outline">
+            <mat-label>Valid From *</mat-label>
+            <input matInput [matDatepicker]="fromPicker" formControlName="validFrom">
+            <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+            <mat-datepicker #fromPicker></mat-datepicker>
+            <mat-error *ngIf="certificateForm.get('validFrom')?.hasError('required')">
+              Valid From date is required
+            </mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Valid To *</mat-label>
+            <input matInput [matDatepicker]="toPicker" formControlName="validTo">
+            <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+            <mat-datepicker #toPicker></mat-datepicker>
+            <mat-error *ngIf="certificateForm.get('validTo')?.hasError('required')">
+              Valid To date is required
+            </mat-error>
+          </mat-form-field>
+        </div>
+      </div>
+
+      <!-- Certificate Extensions -->
+      <div class="form-section">
+        <h3>Certificate Extensions</h3>
+        
+        <div class="checkbox-group">
+          <mat-checkbox formControlName="basicConstraints" color="primary">
+            Basic Constraints: CA:TRUE
+          </mat-checkbox>
+        </div>
+
+        <div class="key-usage-section">
+          <h4>Key Usage</h4>
+          <div class="checkbox-row">
+            <mat-checkbox formControlName="keyCertSign" color="primary">
+              Key Cert Sign
+            </mat-checkbox>
+            <mat-checkbox formControlName="cRLSign" color="primary">
+              CRL Sign
+            </mat-checkbox>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="button" mat-stroked-button color="basic" routerLink="/home" class="cancel-button">
+          Cancel
+        </button>
+        <button type="submit" mat-raised-button color="primary" class="create-button" 
+                [disabled]="certificateForm.invalid || isLoading">
+          {{ isLoading ? 'Creating...' : 'Create Certificate' }}
+        </button>
+      </div>
+    </form>
+  </mat-card>
+
+  <!-- SUCCESS MESSAGE -->
+    <div *ngIf="showSuccessMessage" class="success-overlay">
+      <div class="success-message">
+        <mat-icon class="success-icon">check_circle</mat-icon>
+        <h2>CERTIFICATE CREATED! ✅</h2>
+        
+        <div class="success-details">
+          <p><strong>Root certificate created successfully!</strong></p>
+          
+          <div class="certificate-info">
+            <div class="info-item">
+              <span class="label">Certificate ID:</span>
+              <span class="value">#{{ successData?.certificateId }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Serial Number:</span>
+              <span class="value">{{ successData?.serialNumber }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Subject:</span>
+              <span class="value">{{ certificateForm.get('subjectCommonName')?.value }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="success-actions">
+          <button mat-stroked-button color="primary" (click)="onDownloadCertificate()" class="download-btn">
+            <mat-icon>download</mat-icon>
+            DOWNLOAD CERTIFICATE
+          </button>
+          <button mat-raised-button color="primary" (click)="onCreateAnother()" class="another-btn">
+            CREATE ANOTHER
+          </button>
+          <button mat-button (click)="onBackToList()" class="back-btn">
+            BACK TO LIST
+          </button>
+        </div>
+      </div>
+    </div>
+</div>
