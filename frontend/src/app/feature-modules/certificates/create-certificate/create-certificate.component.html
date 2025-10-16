@@ -14,7 +14,7 @@
           <mat-form-field appearance="outline">
             <mat-label>Certificate Type *</mat-label>
             <mat-select formControlName="certificateType" (selectionChange)="onTypeChange()">
-              <mat-option value="ROOT">Root CA</mat-option>
+              <mat-option value="ROOT" [disabled]="isCA()">Root CA</mat-option>
               <mat-option value="INTERMEDIATE">Intermediate CA</mat-option>
               <mat-option value="END_ENTITY">End Entity</mat-option>
             </mat-select>

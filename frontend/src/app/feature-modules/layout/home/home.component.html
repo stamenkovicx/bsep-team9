@@ -19,19 +19,22 @@
     </div>
 
     <div class="quick-actions">
-      <div class="action-card" routerLink="/certificates">
+      <!-- ADMIN / CA -->
+      <div *ngIf="isAdmin() || isCA()" class="action-card" routerLink="/certificates">
         <mat-icon class="action-icon">list_alt</mat-icon>
-        <h3>Cert List</h3>
-        <p>View all certificates</p>
+        <h3>{{ isAdmin() ? 'Cert List' : 'Chain View' }}</h3>
+        <p>{{ isAdmin() ? 'View all certificates' : 'View certificate chain' }}</p>
       </div>
 
+      <!-- SVI ULOGOVANI -->
       <div class="action-card" routerLink="/certificates/my-certificates">
         <mat-icon class="action-icon">folder_special</mat-icon>
         <h3>My Certs</h3>
         <p>View your certificates</p>
       </div>
 
-      <div class="action-card" routerLink="/certificates/create">
+      <!-- SAMO ADMIN / CA -->
+      <div *ngIf="isAdmin() || isCA()" class="action-card" routerLink="/certificates/create">
         <mat-icon class="action-icon">add_circle</mat-icon>
         <h3>Create New</h3>
         <p>Issue new certificate</p>
