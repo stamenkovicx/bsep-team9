@@ -16,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Map;
 
@@ -138,6 +139,57 @@ public class CertificateController {
         }
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @PostMapping("/intermediate")
+    public ResponseEntity<?> createIntermediateCertificate(
+            @Valid @RequestBody CreateCertificateDTO request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            // 1. Provera da li je issuer ID uopšte poslat
+            if (request.getIssuerCertificateId() == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Issuer certificate ID is required for an intermediate certificate"
+                ));
+            }
+
+            // 2. Pronalazak korisnika koji pravi sertifikat
+            User owner = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            // 3. Validacija datuma
+            if (request.getValidFrom().after(request.getValidTo())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Valid from date must be before valid to date"
+                ));
+            }
+
+            // 4. Validacija da li je sertifikat namenjen za CA
+            if (request.getBasicConstraints() == null || !request.getBasicConstraints().toUpperCase().contains("CA:TRUE")) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Intermediate certificate must have CA:TRUE basic constraints"
+                ));
+            }
+
+            // 5. Validacija izdavaoca i generisanje sertifikata
+            // Ovde pozivamo novu metodu iz CertificateService koja će obaviti sve
+            Certificate savedCertificate = certificateService.createAndSaveIntermediateCertificate(request, owner);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Intermediate certificate created successfully",
+                    "certificateId", savedCertificate.getId(),
+                    "serialNumber", savedCertificate.getSerialNumber()
+            ));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error creating intermediate certificate: " + e.getMessage()
+            ));
+        }
+    }
+
     // GET - Svi Root sertifikati
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/root")
@@ -159,18 +211,28 @@ public class CertificateController {
                 return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
             }
 
+            if (!certificateService.canUserAccessCertificate(id, user)) {
+                return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
+            }
+
             Certificate certificate = certificateService.findById(id)
                     .orElseThrow(() -> new RuntimeException("Certificate not found"));
 
+            // 3. Izvlačenje stvarnog X509 sertifikata iz Keystore-a
+            String alias = "CA_" + certificate.getSerialNumber();
+            X509Certificate x509Cert = (X509Certificate) certificateGeneratorService.getKeystoreService().getCertificate(alias);
+            if (x509Cert == null) {
+                throw new RuntimeException("X509 Certificate not found in keystore for alias: " + alias);
+            }
             // Generisanje PEM formata sertifikata
-            String pemContent = generatePemContent(certificate);
+            String pemContent = generatePemContent(x509Cert);
 
             byte[] pemBytes = pemContent.getBytes(StandardCharsets.UTF_8);
 
             return ResponseEntity.ok()
-                    .header("Content-Type", "application/x-pem-file")
+                    .header("Content-Type", "application/pkix-cert")
                     .header("Content-Disposition",
-                            "attachment; filename=certificate_" + certificate.getSerialNumber() + ".pem")
+                            "attachment; filename=" + certificate.getSerialNumber() + ".cer")
                     .body(pemBytes);
 
         } catch (Exception e) {
@@ -180,20 +242,57 @@ public class CertificateController {
         }
     }
 
-    private String generatePemContent(Certificate certificate) {
-        // Za sada vraćamo osnovne podatke u PEM-like formatu
-        // Kasnije ćemo dodati stvarni X509 sertifikat iz keystore-a
+    private String generatePemContent(X509Certificate certificate) throws Exception {
+        // 1. Dohvatanje bajtova sertifikata u DER formatu
+        byte[] derCert = certificate.getEncoded();
+
+        // 2. Base64 enkodiranje
+        String base64Cert = java.util.Base64.getEncoder().encodeToString(derCert);
+
+        // 3. Formatiranje u PEM
         StringBuilder pem = new StringBuilder();
-        pem.append("-----BEGIN CERTIFICATE INFO-----\n");
-        pem.append("Subject: ").append(certificate.getSubject()).append("\n");
-        pem.append("Issuer: ").append(certificate.getIssuer()).append("\n");
-        pem.append("Serial Number: ").append(certificate.getSerialNumber()).append("\n");
-        pem.append("Valid From: ").append(certificate.getValidFrom()).append("\n");
-        pem.append("Valid To: ").append(certificate.getValidTo()).append("\n");
-        pem.append("Type: ").append(certificate.getType()).append("\n");
-        pem.append("Public Key: ").append(certificate.getPublicKey()).append("\n");
-        pem.append("-----END CERTIFICATE INFO-----\n");
+        pem.append("-----BEGIN CERTIFICATE-----\n");
+
+        // Dodavanje Base64 kodiranog sadržaja sa prelomima redova (tipično 64 znaka po redu)
+        int lineLength = 64;
+        for (int i = 0; i < base64Cert.length(); i += lineLength) {
+            int end = Math.min(i + lineLength, base64Cert.length());
+            pem.append(base64Cert, i, end).append("\n");
+        }
+
+        pem.append("-----END CERTIFICATE-----\n");
 
         return pem.toString();
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @GetMapping("/issuers")
+    public ResponseEntity<List<Certificate>> getAvailableIssuers(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            // Pronalazimo kompletan User objekat da bismo znali njegovu organizaciju
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            List<Certificate> issuers = certificateService.findValidIssuersForUser(user);
+            return ResponseEntity.ok(issuers);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+    //prikaz za CA korisnike
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @GetMapping("/my-chain")
+    public ResponseEntity<List<Certificate>> getMyCertificateChain(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            List<Certificate> chainCertificates = certificateService.findCertificateChainForUser(user);
+            return ResponseEntity.ok(chainCertificates);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
     }
 }

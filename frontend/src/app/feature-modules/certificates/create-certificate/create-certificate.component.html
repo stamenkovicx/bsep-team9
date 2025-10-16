@@ -35,6 +35,34 @@
           <p>📌 <strong>End Entity</strong> - End-user certificate for servers, users, or devices</p>
         </div>
       </div>
+
+      <div class="form-section" *ngIf="selectedType === 'INTERMEDIATE' || selectedType === 'END_ENTITY'">
+        <h3>Issuer Certificate</h3>
+        
+        <div *ngIf="issuersLoading" style="display: flex; align-items: center; gap: 1rem; margin-top: 1rem;">
+          <mat-spinner diameter="30"></mat-spinner>
+          <span>Loading available issuers...</span>
+        </div>
+      
+        <div class="form-row" *ngIf="!issuersLoading && issuers.length > 0">
+          <mat-form-field appearance="outline">
+            <mat-label>Issuer (Signing Certificate) *</mat-label>
+            <mat-select formControlName="issuerCertificateId">
+              <mat-option *ngFor="let issuer of issuers" [value]="issuer.id">
+                {{ extractCommonName(issuer.subject) }}
+              </mat-option>
+            </mat-select>
+            <mat-error *ngIf="certificateForm.get('issuerCertificateId')?.hasError('required')">
+              You must select an issuer certificate.
+            </mat-error>
+          </mat-form-field>
+        </div>
+      
+        <div class="type-description" *ngIf="!issuersLoading && issuers.length === 0">
+          <p style="color: red;">⚠️ No valid issuer certificates found. You cannot create this type of certificate.</p>
+        </div>
+      </div>
+      
         <!-- Subject Information -->
       <div class="form-section">
         <h3>Subject Information</h3>

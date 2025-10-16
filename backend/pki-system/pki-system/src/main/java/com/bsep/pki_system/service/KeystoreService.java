@@ -57,4 +57,16 @@ public class KeystoreService {
             keyStore.store(fos, KEYSTORE_PASSWORD.toCharArray());
         }
     }
+
+    //čuva privatni ključ sa celim lancem sertifikata (za intermediate)
+    public void savePrivateKeyWithChain(String alias, PrivateKey privateKey, Certificate[] chain) throws Exception {
+        KeyStore keyStore = loadOrCreateKeystore();
+        keyStore.setKeyEntry(alias, privateKey, KEYSTORE_PASSWORD.toCharArray(), chain);
+        saveKeystore(keyStore);
+    }
+    //vraća ceo lanac (opciono, ali korisno)
+    public Certificate[] getCertificateChain(String alias) throws Exception {
+        KeyStore keyStore = loadKeystore();
+        return keyStore.getCertificateChain(alias);
+    }
 }
