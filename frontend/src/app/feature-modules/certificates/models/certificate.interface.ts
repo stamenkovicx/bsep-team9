@@ -11,4 +11,9 @@ export interface Certificate {
   basicConstraints?: string;
   keyUsage?: string;
   owner?: any;
+
+  // polja iz subject:
+  subjectCommonName?: string;
+  subjectOrganization?: string;
+  subjectCountry?: string;
 }
