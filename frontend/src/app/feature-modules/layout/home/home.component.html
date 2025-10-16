@@ -1,66 +1,81 @@
 <div class="dashboard-container">
-  <div class="dashboard-header">
-    <h1>PKI SYSTEM DASHBOARD</h1>
-    <p>Manage your certificates and certificate authorities</p>
-  </div>
-
-  <div class="quick-actions">
-    <div class="action-card" routerLink="/certificates">
-      <mat-icon class="action-icon">list_alt</mat-icon>
-      <h3>Cert List</h3>
-      <p>View all certificates</p>
-    </div>
-
-    <div class="action-card" routerLink="/certificates/my-certificates">
-      <mat-icon class="action-icon">folder_special</mat-icon>
-      <h3>My Certs</h3>
-      <p>View your certificates</p>
-    </div>
-
-    <div class="action-card" routerLink="/certificates/create">
-      <mat-icon class="action-icon">add_circle</mat-icon>
-      <h3>Create New</h3>
-      <p>Issue new certificate</p>
+  <!-- NEULOGEVANI KORISNIK -->
+  <div *ngIf="!isLoggedIn()" class="not-logged-in">
+    <div class="welcome-message">
+      <mat-icon class="welcome-icon">security</mat-icon>
+      <h1>Welcome to PKI System</h1>
+      <p>Please log in to manage your certificates and access all features</p>
+      <button mat-raised-button color="primary" routerLink="/login" class="login-btn">
+        <mat-icon>login</mat-icon>
+        Login to Continue
+      </button>
     </div>
   </div>
 
-  <div class="recent-certificates">
-    <div class="section-header">
-      <h2>Recent Certificates</h2>
-      <button *ngIf="!isLoading && recentCertificates.length > 0" 
-              mat-stroked-button 
-              color="primary" 
-              routerLink="/certificates"
-              class="show-all-btn">
-        Show All
-      </button>
-    </div>
-    
-    <div *ngIf="isLoading" class="loading">
-      <mat-spinner diameter="40"></mat-spinner>
-      <p>Loading certificates...</p>
+  <div *ngIf="isLoggedIn()">
+    <div class="dashboard-header">
+      <h1>PKI SYSTEM DASHBOARD</h1>
+      <p>Manage your certificates and certificate authorities</p>
     </div>
 
-    <div *ngIf="!isLoading && recentCertificates.length === 0" class="no-certificates">
-      <mat-icon>info</mat-icon>
-      <p>No certificates found. Create your first certificate!</p>
-      <button mat-raised-button color="primary" routerLink="/certificates/create" class="create-first-btn">
-        Create First Certificate
-      </button>
+    <div class="quick-actions">
+      <div class="action-card" routerLink="/certificates">
+        <mat-icon class="action-icon">list_alt</mat-icon>
+        <h3>Cert List</h3>
+        <p>View all certificates</p>
+      </div>
+
+      <div class="action-card" routerLink="/certificates/my-certificates">
+        <mat-icon class="action-icon">folder_special</mat-icon>
+        <h3>My Certs</h3>
+        <p>View your certificates</p>
+      </div>
+
+      <div class="action-card" routerLink="/certificates/create">
+        <mat-icon class="action-icon">add_circle</mat-icon>
+        <h3>Create New</h3>
+        <p>Issue new certificate</p>
+      </div>
     </div>
 
-    <div class="certificate-list" *ngIf="!isLoading && recentCertificates.length > 0">
-      <div class="certificate-item" *ngFor="let cert of recentCertificates">
-        <mat-icon [class]="getStatusIcon(cert.status)">
-          {{ getStatusIcon(cert.status) }}
-        </mat-icon>
-        <div class="certificate-info">
-          <strong>{{ extractCommonName(cert.subject) }}</strong>
-          <span class="cert-type">({{ cert.type }})</span>
+    <div class="recent-certificates">
+      <div class="section-header">
+        <h2>Recent Certificates</h2>
+        <button *ngIf="!isLoading && recentCertificates.length > 0" 
+                mat-stroked-button 
+                color="primary" 
+                routerLink="/certificates"
+                class="show-all-btn">
+          Show All
+        </button>
+      </div>
+      
+      <div *ngIf="isLoading" class="loading">
+        <mat-spinner diameter="40"></mat-spinner>
+        <p>Loading certificates...</p>
+      </div>
+
+      <div *ngIf="!isLoading && recentCertificates.length === 0" class="no-certificates">
+        <mat-icon>info</mat-icon>
+        <p>No certificates found. Create your first certificate!</p>
+        <button mat-raised-button color="primary" routerLink="/certificates/create" class="create-first-btn">
+          Create First Certificate
+        </button>
+      </div>
+
+      <div class="certificate-list" *ngIf="!isLoading && recentCertificates.length > 0">
+        <div class="certificate-item" *ngFor="let cert of recentCertificates">
+          <mat-icon [class]="getStatusIcon(cert.status)">
+            {{ getStatusIcon(cert.status) }}
+          </mat-icon>
+          <div class="certificate-info">
+            <strong>{{ extractCommonName(cert.subject) }}</strong>
+            <span class="cert-type">({{ cert.type }})</span>
+          </div>
+          <span class="cert-status" [class]="cert.status.toLowerCase()">
+            {{ cert.status }}
+          </span>
         </div>
-        <span class="cert-status" [class]="cert.status.toLowerCase()">
-          {{ cert.status }}
-        </span>
       </div>
     </div>
   </div>

@@ -13,6 +13,8 @@ export class CreateCertificateComponent implements OnInit {
   certificateForm: FormGroup;
   isLoading = false;
   selectedType: string = 'ROOT'; // default vrijednost
+  showSuccessMessage = false;  
+  successData: any = null;
 
   constructor(
     private fb: FormBuilder,
@@ -96,8 +98,8 @@ export class CreateCertificateComponent implements OnInit {
         next: (response) => {
           this.isLoading = false;
           console.log('Certificate created:', response);
-          // TODO: Show success message and redirect
-          this.router.navigate(['/home']);
+          this.successData = response; 
+          this.showSuccessMessage = true; 
         },
         error: (error) => {
           this.isLoading = false;
@@ -119,5 +121,40 @@ export class CreateCertificateComponent implements OnInit {
       formValue.cRLSign,     // cRLSign
       false, false, false, false // remaining bits
     ];
+  }
+onDownloadCertificate(): void {
+    if (this.successData?.certificateId) {
+      this.certificateService.downloadCertificate(this.successData.certificateId).subscribe({
+        next: (blob) => {
+          // Kreiraj download link
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `certificate_${this.successData.serialNumber}.pem`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+        },
+        error: (error) => {
+          console.error('Error downloading certificate:', error);
+        }
+      });
+    }
+  }
+
+  onBackToList(): void {
+    this.showSuccessMessage = false;
+    this.router.navigate(['/home']);
+  }
+
+  onCreateAnother(): void {
+    this.showSuccessMessage = false;
+    this.certificateForm.reset();
+    this.certificateForm.patchValue({
+      certificateType: 'ROOT',
+      basicConstraints: true,
+      keyCertSign: true,
+      cRLSign: true
+    });
+    this.selectedType = 'ROOT';
   }
 }

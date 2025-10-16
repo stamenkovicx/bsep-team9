@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CertificateService } from '../../certificates/certificate.service';
 import { Certificate } from '../../certificates/models/certificate.interface';
+import { AuthService } from 'src/app/infrastructure/auth/auth.service';
 
 interface DashboardCertificate {
   subjectCommonName: string;
@@ -17,7 +18,7 @@ export class HomeComponent implements OnInit {
   recentCertificates: Certificate[] = [];
   isLoading = true;
 
-  constructor(private certificateService: CertificateService) {}
+  constructor(private certificateService: CertificateService, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.loadRecentCertificates();
@@ -35,6 +36,10 @@ export class HomeComponent implements OnInit {
         this.isLoading = false;
       }
     });
+  }
+
+  isLoggedIn(): boolean {
+    return this.authService.isLoggedIn();
   }
 
   extractCommonName(subject: string): string {

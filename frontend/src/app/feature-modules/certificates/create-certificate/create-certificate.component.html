@@ -155,4 +155,44 @@
       </div>
     </form>
   </mat-card>
+
+  <!-- SUCCESS MESSAGE -->
+    <div *ngIf="showSuccessMessage" class="success-overlay">
+      <div class="success-message">
+        <mat-icon class="success-icon">check_circle</mat-icon>
+        <h2>CERTIFICATE CREATED! ✅</h2>
+        
+        <div class="success-details">
+          <p><strong>Root certificate created successfully!</strong></p>
+          
+          <div class="certificate-info">
+            <div class="info-item">
+              <span class="label">Certificate ID:</span>
+              <span class="value">#{{ successData?.certificateId }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Serial Number:</span>
+              <span class="value">{{ successData?.serialNumber }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">Subject:</span>
+              <span class="value">{{ certificateForm.get('subjectCommonName')?.value }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="success-actions">
+          <button mat-stroked-button color="primary" (click)="onDownloadCertificate()" class="download-btn">
+            <mat-icon>download</mat-icon>
+            DOWNLOAD CERTIFICATE
+          </button>
+          <button mat-raised-button color="primary" (click)="onCreateAnother()" class="another-btn">
+            CREATE ANOTHER
+          </button>
+          <button mat-button (click)="onBackToList()" class="back-btn">
+            BACK TO LIST
+          </button>
+        </div>
+      </div>
+    </div>
 </div>

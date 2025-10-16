@@ -125,6 +125,91 @@ mat-card-subtitle {
   padding: 0 24px;
 }
 
+/* Success Message Styles */
+.success-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.success-message {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+}
+
+.success-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: #4caf50;
+  margin-bottom: 20px;
+}
+
+.success-message h2 {
+  margin: 0 0 24px 0;
+  color: #333;
+  font-size: 1.8rem;
+}
+
+.success-details {
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.certificate-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-weight: 500;
+  color: #555;
+}
+
+.value {
+  color: #333;
+  font-weight: 600;
+}
+
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.download-btn, .another-btn, .back-btn {
+  width: 100%;
+  padding: 12px;
+}
+
+.download-btn mat-icon {
+  margin-right: 8px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .certificate-card {
@@ -143,5 +228,15 @@ mat-card-subtitle {
   
   .country-field {
     max-width: none;
+  }
+
+  .success-message {
+    padding: 30px 20px;
+    margin: 20px;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    gap: 4px;
   }
 }

@@ -77,5 +77,13 @@ export class AuthService {
         role: decodedToken.role,   // Uloga je u 'role' polju
     };
     this.user$.next(user);
-}
+  }
+
+  isLoggedIn(): boolean {
+    const token = this.tokenStorage.getAccessToken();
+    if (!token) return false;
+    
+    const jwtHelperService = new JwtHelperService();
+    return !jwtHelperService.isTokenExpired(token);
+  }
 }
