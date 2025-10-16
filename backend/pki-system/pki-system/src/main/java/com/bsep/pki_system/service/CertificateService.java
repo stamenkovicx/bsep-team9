@@ -5,6 +5,10 @@ import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
 import org.springframework.stereotype.Service;
 
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.cert.X509Certificate;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Date;
@@ -19,10 +23,14 @@ public class CertificateService {
 
     private final CertificateRepository certificateRepository;
     private final CertificateGeneratorService certificateGeneratorService;
+    private final KeystoreService keystoreService;
 
-    public CertificateService(CertificateRepository certificateRepository, CertificateGeneratorService certificateGeneratorService) {
+    public CertificateService(CertificateRepository certificateRepository,
+                              CertificateGeneratorService certificateGeneratorService,
+                              KeystoreService keystoreService) {
         this.certificateRepository = certificateRepository;
         this.certificateGeneratorService = certificateGeneratorService;
+        this.keystoreService = keystoreService;
     }
 
     public Certificate saveCertificate(Certificate certificate) {
@@ -61,10 +69,13 @@ public class CertificateService {
 
         Certificate certificate = certificateOpt.get();
         Date now = new Date();
-
+        // 1. Proverava status samog sertifikata (da li je povučen)
+        // 2. Proverava period važenja samog sertifikata
+        // 3. I na kraju, POZIVA isChainValid da proveri ceo lanac iznad
         return certificate.getStatus() == CertificateStatus.VALID &&
                 certificate.getValidFrom().before(now) &&
-                certificate.getValidTo().after(now);
+                certificate.getValidTo().after(now) &&
+                isChainValid(certificate);
     }
 
     public void revokeCertificate(Long certificateId, String reason) {
@@ -96,8 +107,7 @@ public class CertificateService {
 
         // CA korisnik može da pristupi sertifikatima iz svog lanca
         if (user.getRole() == UserRole.CA) {
-            // TODO: dodati metodu isCertificateInUserChain
-            // return isCertificateInUserChain(certificate, user);
+            return isCertificateInUserOrganizationChain(certificate, user.getOrganization());
         }
 
         // BASIC korisnik može da pristupi samo svojim EE sertifikatima
@@ -217,5 +227,43 @@ public class CertificateService {
             return matcher.group(1); // Vraća samo tekst između "O=" i sledećeg zareza.
         }
         return null; // Nije pronađena organizacija.
+    }
+
+    private boolean isChainValid(Certificate certificate) {
+        Certificate current = certificate;
+
+        // Idemo uz lanac sve dok ne dođemo do Root-a (koji nema issuera)
+        while (current.getIssuerCertificate() != null) {
+            Certificate issuer = current.getIssuerCertificate();
+
+            // Provera #1: Status i datum važenja roditelja
+            if (issuer.getStatus() != CertificateStatus.VALID || issuer.getValidTo().before(new Date())) {
+                return false;
+            }
+
+            // Provera #2: Ispravnost digitalnog potpisa
+            try {
+                // 1. Uzmi stvarni X509 objekat za "dete" iz keystore-a
+                X509Certificate currentX509 = (X509Certificate) keystoreService.getCertificate("CA_" + current.getSerialNumber());
+
+                // 2. Rekonstruiši javni ključ "roditelja" (izdavaoca) iz stringa u bazi
+                byte[] issuerPublicKeyBytes = java.util.Base64.getDecoder().decode(issuer.getPublicKey());
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey issuerPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(issuerPublicKeyBytes));
+
+                // 3. Verifikuj potpis deteta koristeći javni ključ roditelja
+                //    Ako potpis nije ispravan, ova linija će baciti izuzetak
+                currentX509.verify(issuerPublicKey);
+            } catch (Exception e) {
+                // to znači da potpis nije validan.
+                e.printStackTrace();
+                return false;
+            }
+            // Pređi na sledeći sertifikat u lancu
+            current = issuer;
+        }
+
+        // Stigli smo do Root-a i svi potpisi u lancu su bili ispravni.
+        return true;
     }
 }
