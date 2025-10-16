@@ -12,6 +12,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { CertificatesRoutingModule } from './certificates-routing.module';
 import { CreateCertificateComponent } from './create-certificate/create-certificate.component';
@@ -34,7 +35,8 @@ import { CreateCertificateComponent } from './create-certificate/create-certific
     MatCheckboxModule,
     MatDatepickerModule,
     MatNativeDateModule,
-    MatButtonModule
+    MatButtonModule,
+    MatProgressSpinnerModule
   ]
 })
 export class CertificatesModule { }

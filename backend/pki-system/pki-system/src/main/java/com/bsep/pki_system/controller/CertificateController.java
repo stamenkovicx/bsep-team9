@@ -138,6 +138,57 @@ public class CertificateController {
         }
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @PostMapping("/intermediate")
+    public ResponseEntity<?> createIntermediateCertificate(
+            @Valid @RequestBody CreateCertificateDTO request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            // 1. Provera da li je issuer ID uopšte poslat
+            if (request.getIssuerCertificateId() == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Issuer certificate ID is required for an intermediate certificate"
+                ));
+            }
+
+            // 2. Pronalazak korisnika koji pravi sertifikat
+            User owner = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            // 3. Validacija datuma
+            if (request.getValidFrom().after(request.getValidTo())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Valid from date must be before valid to date"
+                ));
+            }
+
+            // 4. Validacija da li je sertifikat namenjen za CA
+            if (request.getBasicConstraints() == null || !request.getBasicConstraints().toUpperCase().contains("CA:TRUE")) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Intermediate certificate must have CA:TRUE basic constraints"
+                ));
+            }
+
+            // 5. Validacija izdavaoca i generisanje sertifikata
+            // Ovde pozivamo novu metodu iz CertificateService koja će obaviti sve
+            Certificate savedCertificate = certificateService.createAndSaveIntermediateCertificate(request, owner);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Intermediate certificate created successfully",
+                    "certificateId", savedCertificate.getId(),
+                    "serialNumber", savedCertificate.getSerialNumber()
+            ));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error creating intermediate certificate: " + e.getMessage()
+            ));
+        }
+    }
+
     // GET - Svi Root sertifikati
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/root")
@@ -195,5 +246,36 @@ public class CertificateController {
         pem.append("-----END CERTIFICATE INFO-----\n");
 
         return pem.toString();
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @GetMapping("/issuers")
+    public ResponseEntity<List<Certificate>> getAvailableIssuers(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            // Pronalazimo kompletan User objekat da bismo znali njegovu organizaciju
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            List<Certificate> issuers = certificateService.findValidIssuersForUser(user);
+            return ResponseEntity.ok(issuers);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
+    }
+    //prikaz za CA korisnike
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @GetMapping("/my-chain")
+    public ResponseEntity<List<Certificate>> getMyCertificateChain(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            List<Certificate> chainCertificates = certificateService.findCertificateChainForUser(user);
+            return ResponseEntity.ok(chainCertificates);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(null);
+        }
     }
 }

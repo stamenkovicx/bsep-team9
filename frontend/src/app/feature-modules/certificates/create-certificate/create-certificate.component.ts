@@ -5,6 +5,7 @@ import { CertificateService } from '../certificate.service';
 import { CreateCertificateDTO } from '../models/create-certificate.dto';
 import { AuthService } from 'src/app/infrastructure/auth/auth.service';
 import { User } from 'src/app/infrastructure/auth/model/user.model';
+import { Certificate } from '../models/certificate.interface';
 
 @Component({
   selector: 'app-create-certificate',
@@ -18,6 +19,9 @@ export class CreateCertificateComponent implements OnInit {
   showSuccessMessage = false;  
   successData: any = null;
   currentUser: User | null = null;
+  
+  issuers: Certificate[] = [];      // Niz za čuvanje mogucih izdavaoca
+  issuersLoading = false;           // Za prikaz spinner-a dok se ucitavaju
 
   constructor(
     private fb: FormBuilder,
@@ -56,7 +60,8 @@ export class CreateCertificateComponent implements OnInit {
     return this.fb.group({
       // Certificate Type
       certificateType: ['ROOT', Validators.required],
-
+      // za cuvanje ID-a izabranog izdavaoca
+      issuerCertificateId: [null],
       // Subject Information
       subjectCommonName: ['', Validators.required],
       subjectOrganization: ['', Validators.required],
@@ -80,61 +85,116 @@ export class CreateCertificateComponent implements OnInit {
   onTypeChange(): void {
     this.selectedType = this.certificateForm.get('certificateType')?.value;
     
+    if (this.selectedType === 'INTERMEDIATE') {
+      // Ako pravimo INTERMEDIATE, prikaže SAMO ROOT sertifikate
+      this.loadIssuers(true); 
+    } else if (this.selectedType === 'END_ENTITY') {
+      // Ako pravimo END_ENTITY,  prikaže SVE (i Root i Intermediate)
+      this.loadIssuers(false);
+    } else {
+      // Za ROOT, lista nam ne treba
+      this.issuers = [];
+    }
+
     // Dinamički ažuriraj validaciju based on type
     this.updateValidationBasedOnType();
   }
 
-  private updateValidationBasedOnType(): void {
-    const basicConstraintsControl = this.certificateForm.get('basicConstraints');
-    
-    if (this.selectedType === 'ROOT' || this.selectedType === 'INTERMEDIATE') {
-      // Force CA:TRUE for Root and Intermediate
-      basicConstraintsControl?.setValue(true);
-      basicConstraintsControl?.disable();
-    } else {
-      // End Entity - CA:FALSE
-      basicConstraintsControl?.setValue(false);
-      basicConstraintsControl?.disable();
-    }
+  // metoda za ucitavanje liste izdavaoca 
+  private loadIssuers(filterForRootOnly: boolean): void {
+    this.issuersLoading = true;
+    this.certificateService.getIssuers().subscribe({ 
+      next: (data) => {
+        if (filterForRootOnly) {
+          // Ako je `filterForRootOnly` true, zadrži samo one sertifikate čiji je tip 'ROOT'
+          this.issuers = data.filter(cert => cert.type === 'ROOT');
+        } else {
+          this.issuers = data;
+        }
+
+        this.issuersLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading issuers:', err);
+        this.issuersLoading = false;
+      }
+    });
   }
 
-  onSubmit(): void {
-    if (this.certificateForm.valid) {
-      this.isLoading = true;
+  private updateValidationBasedOnType(): void {
+    const basicConstraintsControl = this.certificateForm.get('basicConstraints');
+    const issuerIdControl = this.certificateForm.get('issuerCertificateId');
+    
+    if (this.selectedType === 'ROOT') {
+      // Za ROOT, issuer NIJE potreban
+      issuerIdControl?.setValue(null);
+      issuerIdControl?.clearValidators();
       
-      const formValue = this.certificateForm.value;
-      const request: CreateCertificateDTO = {
-        subjectCommonName: formValue.subjectCommonName,
-        subjectOrganization: formValue.subjectOrganization,
-        subjectOrganizationalUnit: formValue.subjectOrganizationalUnit,
-        subjectCountry: formValue.subjectCountry,
-        subjectState: formValue.subjectState,
-        subjectLocality: formValue.subjectLocality,
-        subjectEmail: formValue.subjectEmail,
-        validFrom: new Date(formValue.validFrom).toISOString(),
-        validTo: new Date(formValue.validTo).toISOString(),
-        keyUsage: this.getKeyUsageArray(formValue),
-        basicConstraints: this.selectedType === 'END_ENTITY' ? 'CA:FALSE' : 'CA:TRUE',
-        extendedKeyUsage: '',
-        issuerCertificateId: null
-      };
+      basicConstraintsControl?.setValue(true);
+      basicConstraintsControl?.disable();
 
-      if (this.selectedType === 'ROOT') {
-        this.certificateService.createRootCertificate(request).subscribe({
-        next: (response) => {
-          this.isLoading = false;
-          console.log('Certificate created:', response);
-          this.successData = response; 
-          this.showSuccessMessage = true; 
-        },
-        error: (error) => {
-          this.isLoading = false;
-          console.error('Error creating certificate:', error);
-          // TODO: Show error message
-        }
-      });
-    } // dodati za ostale tipove
+    } else { // Za INTERMEDIATE i END_ENTITY
+      // Issuer JE OBAVEZAN
+      issuerIdControl?.setValidators([Validators.required]);
+      
+      if (this.selectedType === 'INTERMEDIATE') {
+        basicConstraintsControl?.setValue(true);
+        basicConstraintsControl?.disable();
+      } else { // END_ENTITY
+        basicConstraintsControl?.setValue(false);
+        basicConstraintsControl?.disable();
+      }
     }
+    // Obavezno pozovi ovo da se validacija primeni na polje
+    issuerIdControl?.updateValueAndValidity();
+  }
+
+
+  onSubmit(): void {
+    if (this.certificateForm.invalid) {
+      this.certificateForm.markAllAsTouched(); // Pokaži greške ako forma nije validna
+      return;
+    }
+
+    this.isLoading = true;
+    const formValue = this.certificateForm.getRawValue(); // Uzima i vrednosti iz onemogućenih polja
+    
+    const request: CreateCertificateDTO = {
+      subjectCommonName: formValue.subjectCommonName,
+      subjectOrganization: formValue.subjectOrganization,
+      subjectOrganizationalUnit: formValue.subjectOrganizationalUnit,
+      subjectCountry: formValue.subjectCountry,
+      subjectState: formValue.subjectState,
+      subjectLocality: formValue.subjectLocality,
+      subjectEmail: formValue.subjectEmail,
+      validFrom: new Date(formValue.validFrom).toISOString(),
+      validTo: new Date(formValue.validTo).toISOString(),
+      keyUsage: this.getKeyUsageArray(formValue),
+      basicConstraints: formValue.basicConstraints ? 'CA:TRUE' : 'CA:FALSE',
+      extendedKeyUsage: '',
+      issuerCertificateId: formValue.issuerCertificateId // Sada se uzima vrednost iz forme
+    };
+
+    let apiCall;
+
+    if (this.selectedType === 'ROOT') {
+      apiCall = this.certificateService.createRootCertificate(request);
+    } else { // Za INTERMEDIATE (i kasnije za End-Entity)
+      apiCall = this.certificateService.createIntermediateCertificate(request);
+    }
+
+    apiCall.subscribe({
+      next: (response) => {
+        this.isLoading = false;
+        this.successData = response; 
+        this.showSuccessMessage = true; 
+      },
+      error: (error) => {
+        this.isLoading = false;
+        console.error('Error creating certificate:', error);
+        // TODO: Prikazati grešku korisniku (npr. Snackbar poruka)
+      }
+    });
   }
 
   private getKeyUsageArray(formValue: any): boolean[] {
@@ -175,12 +235,15 @@ onDownloadCertificate(): void {
   onCreateAnother(): void {
     this.showSuccessMessage = false;
     this.certificateForm.reset();
-    this.certificateForm.patchValue({
-      certificateType: 'ROOT',
-      basicConstraints: true,
-      keyCertSign: true,
-      cRLSign: true
-    });
-    this.selectedType = 'ROOT';
+    this.ngOnInit(); // Ponovo pozovi ngOnInit da se forma ispravno resetuje na osnovu uloge
+  }
+
+  extractCommonName(subject: string): string {
+    if (!subject) {
+      return 'Unknown Issuer';
+    }
+    // Koristi regularni izraz da pronađeš vrednost posle "CN="
+    const cnMatch = subject.match(/CN=([^,]+)/);
+    return cnMatch ? cnMatch[1] : 'Unnamed Certificate';
   }
 }

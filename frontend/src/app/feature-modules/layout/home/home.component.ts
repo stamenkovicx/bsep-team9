@@ -41,7 +41,8 @@ export class HomeComponent implements OnInit {
       this.certificateService.getAllCertificates().subscribe({
         next: (certificates) => {
           // Uzmi posljednja 3 sertifikata za "recent"
-          this.recentCertificates = certificates.slice(-3).reverse();
+          //this.recentCertificates = certificates.slice(-3).reverse();
+          this.recentCertificates = certificates
           this.isLoading = false;
         },
         error: (error) => {
@@ -49,7 +50,23 @@ export class HomeComponent implements OnInit {
           this.isLoading = false;
         }
       });
-    } // else if ... dodati za ostale tipove 
+    } else if (this.isCA()) {
+      // Za CA korisnika, pozovi metodu koja vraća CEO LANAC
+      this.certificateService.getMyChain().subscribe({
+        next: (certificates) => {
+          this.recentCertificates = certificates.slice(-5).reverse();
+          this.isLoading = false;
+        },
+        error: (error) => {
+          console.error('Error loading certificate chain:', error);
+          this.isLoading = false;
+        }
+      });
+    } else {
+      // Logika za Basic korisnika ili ako nema uloge
+      this.isLoading = false;
+      this.recentCertificates = [];
+    }
   }
 
   isAdmin(): boolean {
