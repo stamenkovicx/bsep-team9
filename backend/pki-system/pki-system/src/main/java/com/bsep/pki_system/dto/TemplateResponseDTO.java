@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -20,7 +21,7 @@ public class TemplateResponseDTO {
     private String commonNameRegex;
     private String sansRegex;
     private Integer maxValidityDays;
-    private String keyUsage;
+    private List<Boolean> keyUsage;
     private String extendedKeyUsage;
     private String basicConstraints;
     private LocalDateTime createdAt;

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "certificate_templates")
@@ -42,8 +43,10 @@ public class CertificateTemplate {
     @Column(name = "max_validity_days")
     private Integer maxValidityDays;
 
-    @Column(name = "key_usage")
-    private String keyUsage;
+    @ElementCollection
+    @CollectionTable(name = "template_key_usage", joinColumns = @JoinColumn(name = "template_id"))
+    @Column(name = "key_usage_bit")
+    private List<Boolean> keyUsage;
 
     @Column(name = "extended_key_usage")
     private String extendedKeyUsage;

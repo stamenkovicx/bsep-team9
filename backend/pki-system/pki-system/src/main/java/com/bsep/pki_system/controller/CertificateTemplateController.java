@@ -2,8 +2,10 @@ package com.bsep.pki_system.controller;
 
 import com.bsep.pki_system.dto.CreateTemplateDTO;
 import com.bsep.pki_system.dto.TemplateResponseDTO;
+import com.bsep.pki_system.jwt.UserPrincipal;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.service.CertificateTemplateService;
+import com.bsep.pki_system.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,9 +20,12 @@ import java.util.Map;
 public class CertificateTemplateController {
 
     private final CertificateTemplateService templateService;
+    private final UserService userService;
 
-    public CertificateTemplateController(CertificateTemplateService templateService) {
+    public CertificateTemplateController(CertificateTemplateService templateService,
+                                         UserService userService) {
         this.templateService = templateService;
+        this.userService = userService;
     }
 
     // SAMO CA korisnik može da kreira šablone
@@ -28,8 +33,12 @@ public class CertificateTemplateController {
     @PostMapping
     public ResponseEntity<?> createTemplate(
             @Valid @RequestBody CreateTemplateDTO templateDTO,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
+            // Pronalazimo kompletan User objekat da bismo znali njegovu organizaciju
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
             var template = templateService.createTemplate(templateDTO, user);
             var responseDTO = convertToResponseDTO(template);
 
@@ -47,7 +56,11 @@ public class CertificateTemplateController {
     // SAMO CA korisnik vidi svoje šablone
     @PreAuthorize("hasRole('CA')")
     @GetMapping
-    public ResponseEntity<List<TemplateResponseDTO>> getMyTemplates(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<TemplateResponseDTO>> getMyTemplates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        // Pronalazimo kompletan User objekat da bismo znali njegovu organizaciju
+        User user = userService.findByEmail(userPrincipal.getEmail())
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
         List<TemplateResponseDTO> templates = templateService.getTemplatesForUser(user);
         return ResponseEntity.ok(templates);
     }
@@ -57,8 +70,11 @@ public class CertificateTemplateController {
     @GetMapping("/ca-issuer/{caIssuerId}")
     public ResponseEntity<?> getTemplatesForCaIssuer(
             @PathVariable Long caIssuerId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
             List<TemplateResponseDTO> templates = templateService.getTemplatesForCaIssuer(caIssuerId, user);
             return ResponseEntity.ok(templates);
         } catch (IllegalArgumentException e) {
@@ -71,8 +87,11 @@ public class CertificateTemplateController {
     @GetMapping("/{templateId}")
     public ResponseEntity<?> getTemplate(
             @PathVariable Long templateId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
             var template = templateService.findById(templateId, user);
             var responseDTO = convertToResponseDTO(template);
             return ResponseEntity.ok(responseDTO);
@@ -86,8 +105,11 @@ public class CertificateTemplateController {
     @DeleteMapping("/{templateId}")
     public ResponseEntity<?> deleteTemplate(
             @PathVariable Long templateId,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
             templateService.deleteTemplate(templateId, user);
             return ResponseEntity.ok(Map.of("message", "Template deleted successfully"));
         } catch (IllegalArgumentException e) {
@@ -102,8 +124,11 @@ public class CertificateTemplateController {
     @PostMapping("/validate-cn")
     public ResponseEntity<?> validateCommonName(
             @RequestBody Map<String, String> request,
-            @AuthenticationPrincipal User user) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
             String commonName = request.get("commonName");
             String regexPattern = request.get("regexPattern");
 

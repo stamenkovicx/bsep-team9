@@ -1,0 +1,294 @@
+<div class="templates-container">
+  <!-- HEADER SECTION -->
+  <div class="header-section">
+    <mat-card class="header-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>description</mat-icon>
+        <mat-card-title>Certificate Templates</mat-card-title>
+        <mat-card-subtitle>Manage and use certificate templates for quick creation</mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-actions>
+        <button 
+          mat-raised-button 
+          color="primary" 
+          (click)="showForm = !showForm"
+          class="toggle-form-btn">
+          <mat-icon>{{ showForm ? 'visibility_off' : 'add' }}</mat-icon>
+          {{ showForm ? 'Hide Template Form' : 'Create New Template' }}
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </div>
+
+  <!-- TEMPLATE FORM SECTION -->
+  <div *ngIf="showForm" class="form-section">
+    <mat-card class="form-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>create</mat-icon>
+        <mat-card-title>{{ isEditing ? 'Edit Template' : 'Create New Template' }}</mat-card-title>
+        <mat-card-subtitle>{{ isEditing ? 'Update existing template' : 'Define a new certificate template' }}</mat-card-subtitle>
+      </mat-card-header>
+
+      <form [formGroup]="templateForm" (ngSubmit)="onSubmit()" class="template-form">
+        <!-- Template Basic Info -->
+        <div class="form-section-inner">
+          <h3>Template Information</h3>
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Template Name *</mat-label>
+              <input matInput formControlName="name" placeholder="My Template">
+              <mat-icon matSuffix>title</mat-icon>
+              <mat-error *ngIf="templateForm.get('name')?.hasError('required')">
+                Template name is required
+              </mat-error>
+              <mat-error *ngIf="templateForm.get('name')?.hasError('minlength')">
+                Template name must be at least 3 characters
+              </mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Certificate Type *</mat-label>
+              <mat-select formControlName="certificateType" (selectionChange)="onTemplateTypeChange()">
+                <mat-option value="INTERMEDIATE">Intermediate CA</mat-option>
+                <mat-option value="END_ENTITY">End Entity</mat-option>
+              </mat-select>
+              <mat-error *ngIf="templateForm.get('certificateType')?.hasError('required')">
+                Certificate type is required
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Description</mat-label>
+              <textarea matInput formControlName="description" placeholder="Template description..." rows="2"></textarea>
+            </mat-form-field>
+          </div>
+
+          <!-- Description based on type -->
+          <div class="type-description" *ngIf="selectedTemplateType === 'INTERMEDIATE'">
+            <p>📌 <strong>Intermediate CA Template</strong> - Signed by Root CA, can issue other certificates</p>
+          </div>
+          <div class="type-description" *ngIf="selectedTemplateType === 'END_ENTITY'">
+            <p>📌 <strong>End Entity Template</strong> - End-user certificate for servers, users, or devices</p>
+          </div>
+        </div>
+
+        <!-- Subject Information -->
+        <div class="form-section-inner">
+          <h3>Subject Information</h3>
+          
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Common Name *</mat-label>
+              <input matInput formControlName="subjectCommonName" placeholder="My Certificate Authority">
+              <mat-error *ngIf="templateForm.get('subjectCommonName')?.hasError('required')">
+                Common Name is required
+              </mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Organization *</mat-label>
+              <input matInput formControlName="subjectOrganization" placeholder="BSEP Company">
+              <mat-error *ngIf="templateForm.get('subjectOrganization')?.hasError('required')">
+                Organization is required
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Organizational Unit</mat-label>
+              <input matInput formControlName="subjectOrganizationalUnit" placeholder="IT Department">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="country-field">
+              <mat-label>Country *</mat-label>
+              <input matInput formControlName="subjectCountry" placeholder="RS" maxlength="2">
+              <mat-error *ngIf="templateForm.get('subjectCountry')?.hasError('required')">
+                Country is required
+              </mat-error>
+              <mat-error *ngIf="templateForm.get('subjectCountry')?.hasError('maxlength')">
+                Country code must be 2 characters
+              </mat-error>
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>State/Province</mat-label>
+              <input matInput formControlName="subjectState" placeholder="Serbia">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Locality/City</mat-label>
+              <input matInput formControlName="subjectLocality" placeholder="Novi Sad">
+            </mat-form-field>
+          </div>
+
+          <div class="form-row">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Email Address</mat-label>
+              <input matInput formControlName="subjectEmail" placeholder="admin@company.com" type="email">
+              <mat-error *ngIf="templateForm.get('subjectEmail')?.hasError('email')">
+                Please enter a valid email address
+              </mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Validity Period -->
+        <div class="form-section-inner">
+          <h3>Validity Period</h3>
+          <div class="form-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Validity Days *</mat-label>
+              <input matInput formControlName="validityDays" type="number" min="1" max="3650">
+              <mat-icon matSuffix>calendar_today</mat-icon>
+              <mat-error *ngIf="templateForm.get('validityDays')?.hasError('required')">
+                Validity days is required
+              </mat-error>
+              <mat-error *ngIf="templateForm.get('validityDays')?.hasError('min')">
+                Must be at least 1 day
+              </mat-error>
+              <mat-error *ngIf="templateForm.get('validityDays')?.hasError('max')">
+                Cannot exceed 3650 days (10 years)
+              </mat-error>
+            </mat-form-field>
+          </div>
+        </div>
+
+        <!-- Certificate Extensions -->
+        <div class="form-section-inner">
+          <h3>Certificate Extensions</h3>
+          
+          <div class="checkbox-group">
+            <mat-checkbox formControlName="basicConstraints" color="primary">
+              Basic Constraints: CA:TRUE
+            </mat-checkbox>
+          </div>
+
+          <div class="key-usage-section">
+            <h4>Key Usage</h4>
+            <div class="checkbox-grid">
+              <mat-checkbox formControlName="digitalSignature" color="primary">
+                Digital Signature
+              </mat-checkbox>
+              <mat-checkbox formControlName="keyEncipherment" color="primary">
+                Key Encipherment
+              </mat-checkbox>
+              <mat-checkbox formControlName="keyAgreement" color="primary">
+                Key Agreement
+              </mat-checkbox>
+              <mat-checkbox formControlName="keyCertSign" color="primary">
+                Key Cert Sign
+              </mat-checkbox>
+              <mat-checkbox formControlName="cRLSign" color="primary">
+                CRL Sign
+              </mat-checkbox>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="button" mat-stroked-button color="basic" (click)="resetForm()" class="cancel-button">
+            <mat-icon>clear</mat-icon>
+            Cancel
+          </button>
+          <button type="submit" mat-raised-button color="primary" class="submit-button" 
+                  [disabled]="templateForm.invalid || isLoading">
+            <mat-icon>{{ isEditing ? 'save' : 'add' }}</mat-icon>
+            {{ isLoading ? 'Saving...' : (isEditing ? 'Update Template' : 'Create Template') }}
+          </button>
+        </div>
+      </form>
+    </mat-card>
+  </div>
+
+  <!-- TEMPLATES LIST SECTION -->
+  <div class="list-section">
+    <mat-card class="list-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>folder</mat-icon>
+        <mat-card-title>Saved Templates</mat-card-title>
+        <mat-card-subtitle>Available certificate templates</mat-card-subtitle>
+      </mat-card-header>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading-state">
+        <mat-spinner diameter="40"></mat-spinner>
+        <span>Loading templates...</span>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isLoading && templates.length === 0" class="empty-state">
+        <mat-icon>folder_open</mat-icon>
+        <h3>No Templates Found</h3>
+        <p>Create your first template to get started</p>
+        <button mat-raised-button color="primary" (click)="showForm = true">
+          <mat-icon>add</mat-icon>
+          Create Template
+        </button>
+      </div>
+
+      <!-- Templates Grid -->
+      <div *ngIf="!isLoading && templates.length > 0" class="templates-grid">
+        <mat-card *ngFor="let template of templates" class="template-card" 
+                  [class.intermediate-template]="template.certificateType === 'INTERMEDIATE'"
+                  [class.endentity-template]="template.certificateType === 'END_ENTITY'">
+          
+          <mat-card-header>
+            <div mat-card-avatar class="template-avatar">
+              <mat-icon>{{ getTemplateIcon(template.certificateType) }}</mat-icon>
+            </div>
+            <mat-card-title>{{ template.name }}</mat-card-title>
+            <mat-card-subtitle>
+              <span class="template-type-badge">{{ template.certificateType }}</span>
+              • Created {{ template.createdDate | date:'mediumDate' }}
+            </mat-card-subtitle>
+          </mat-card-header>
+
+          <mat-card-content>
+            <p class="template-description">{{ template.description || 'No description provided' }}</p>
+            
+            <div class="template-details">
+              <div class="detail-item">
+                <mat-icon>person</mat-icon>
+                <span>{{ template.subjectCommonName }}</span>
+              </div>
+              <div class="detail-item">
+                <mat-icon>business</mat-icon>
+                <span>{{ template.subjectOrganization }}</span>
+              </div>
+              <div class="detail-item">
+                <mat-icon>calendar_today</mat-icon>
+                <span>{{ template.maxValidityDays }} days validity</span>
+              </div>
+              <div class="detail-item" *ngIf="template.usageCount !== undefined">
+                <mat-icon>play_arrow</mat-icon>
+                <span>Used {{ template.usageCount }} times</span>
+              </div>
+            </div>
+          </mat-card-content>
+
+          <mat-card-actions align="end">
+            <button mat-button color="primary" (click)="onUseTemplate(template)" class="use-btn">
+              <mat-icon>play_arrow</mat-icon>
+              USE
+            </button>
+            <button mat-button color="accent" (click)="onEditTemplate(template)" class="edit-btn">
+              <mat-icon>edit</mat-icon>
+              EDIT
+            </button>
+            <button mat-button color="warn" (click)="onDeleteTemplate(template.id!)" class="delete-btn">
+              <mat-icon>delete</mat-icon>
+              DELETE
+            </button>
+          </mat-card-actions>
+        </mat-card>
+      </div>
+    </mat-card>
+  </div>
+</div>

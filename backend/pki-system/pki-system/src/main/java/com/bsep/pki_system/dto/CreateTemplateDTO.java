@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,7 +33,7 @@ public class CreateTemplateDTO {
     @Positive(message = "Max validity days must be positive")
     private Integer maxValidityDays;
 
-    private String keyUsage;
+    private List<Boolean> keyUsage;
 
     private String extendedKeyUsage;
 
