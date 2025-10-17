@@ -67,4 +67,10 @@ public class Certificate {
     private String keyUsage;
     private String extendedKeyUsage;
     private String basicConstraints;
+
+    @Column(name = "crl_number")
+    private Long crlNumber; // Broj CRL liste (inkrementira se sa svakom novom)
+
+    @Column(name = "last_crl_update")
+    private LocalDateTime lastCRLUpdate;
 }
