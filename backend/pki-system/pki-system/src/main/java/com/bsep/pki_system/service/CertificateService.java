@@ -3,6 +3,7 @@ package com.bsep.pki_system.service;
 import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.security.KeyFactory;
@@ -26,7 +27,7 @@ public class CertificateService {
     private final KeystoreService keystoreService;
 
     public CertificateService(CertificateRepository certificateRepository,
-                              CertificateGeneratorService certificateGeneratorService,
+                              @Lazy CertificateGeneratorService certificateGeneratorService,
                               KeystoreService keystoreService) {
         this.certificateRepository = certificateRepository;
         this.certificateGeneratorService = certificateGeneratorService;
