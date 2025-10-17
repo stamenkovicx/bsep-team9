@@ -197,6 +197,8 @@ public class CertificateGeneratorService {
         // DODATO: Postavljanje SKI i AKI ekstenzija
         certBuilder.addExtension(Extension.subjectKeyIdentifier, false, ski);
         certBuilder.addExtension(Extension.authorityKeyIdentifier, false, aki);
+        //CRL Distribution Point
+        addCRLDistributionPoint(certBuilder, issuerCertificate.getSerialNumber());
 
         // 7. POTPISIVANJE SERTIFIKATA
         ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(issuerPrivateKey);
@@ -228,6 +230,22 @@ public class CertificateGeneratorService {
 
         return savedCertificate;
     }
+    private void addCRLDistributionPoint(X509v3CertificateBuilder builder, String issuerSerialNumber) throws Exception {
+        // URL gde će biti dostupna CRL lista
+        String crlUrl = "http://localhost:8080/api/crl/" + issuerSerialNumber + ".crl";
+
+        GeneralName generalName = new GeneralName(GeneralName.uniformResourceIdentifier, crlUrl);
+        GeneralNames generalNames = new GeneralNames(generalName);
+        DistributionPointName dpn = new DistributionPointName(generalNames);
+        DistributionPoint dp = new DistributionPoint(dpn, null, null);
+
+        builder.addExtension(
+                Extension.cRLDistributionPoints,
+                false,
+                new CRLDistPoint(new DistributionPoint[]{dp})
+        );
+    }
+
 
     private java.security.cert.Certificate[] buildCertificateChain(Certificate issuerCert, X509Certificate newCert) throws Exception {
         List<java.security.cert.Certificate> chain = new ArrayList<>();

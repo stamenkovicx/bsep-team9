@@ -4,8 +4,10 @@ import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
 import org.springframework.context.annotation.Lazy;
+import org.bouncycastle.cert.X509CRLHolder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
@@ -25,13 +27,16 @@ public class CertificateService {
     private final CertificateRepository certificateRepository;
     private final CertificateGeneratorService certificateGeneratorService;
     private final KeystoreService keystoreService;
+    private final CRLService crlService;
+
 
     public CertificateService(CertificateRepository certificateRepository,
                               @Lazy CertificateGeneratorService certificateGeneratorService,
-                              KeystoreService keystoreService) {
+                              KeystoreService keystoreService, CRLService crlService) {
         this.certificateRepository = certificateRepository;
         this.certificateGeneratorService = certificateGeneratorService;
         this.keystoreService = keystoreService;
+        this.crlService = crlService;
     }
 
     public Certificate saveCertificate(Certificate certificate) {

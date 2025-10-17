@@ -17,6 +17,8 @@ import { MatInputModule } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { TwoFactorDialogComponent } from './infrastructure/two-factor-dialog/two-factor-dialog.component';
 import { MatDialogModule } from "@angular/material/dialog";
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 
 @NgModule({
@@ -37,7 +39,9 @@ import { MatDialogModule } from "@angular/material/dialog";
     MatCardModule,
     MatButtonModule,
     MatFormFieldModule,
-    MatDialogModule
+    MatDialogModule,
+    MatSelectModule,
+    MatTooltipModule,
 ],
   providers: [
     {
