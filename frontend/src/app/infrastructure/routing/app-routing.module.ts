@@ -15,7 +15,13 @@ const routes: Routes = [
     canActivate: [AuthGuard],
     loadChildren: () =>
       import('src/app/feature-modules/certificates/certificates.module').then(m => m.CertificatesModule)
-  },   
+  },
+  {
+    path: 'templates',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('src/app/feature-modules/certificate-templates/certificate-templates.module').then(m => m.TemplatesModule)
+  },      
  // 2. Podrazumevana ruta: Preusmerava praznu putanju na glavnu stranicu
   {path: '', redirectTo: '/home', pathMatch: 'full'},
   // 3. Džoker ruta (opciono): Preusmerava sve nepoznate URL-ove na početnu stranicu
