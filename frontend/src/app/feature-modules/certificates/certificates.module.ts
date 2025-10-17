@@ -19,7 +19,7 @@ import { CreateCertificateComponent } from './create-certificate/create-certific
 
 @NgModule({
   declarations: [
-    CreateCertificateComponent
+    CreateCertificateComponent,
   ],
   imports: [
     CommonModule,

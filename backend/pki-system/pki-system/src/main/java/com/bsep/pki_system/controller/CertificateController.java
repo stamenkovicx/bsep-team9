@@ -71,16 +71,66 @@ public class CertificateController {
 
     // POST - Revokacija(povlacenje) sertifikata
     @PostMapping("/{id}/revoke")
-    public ResponseEntity<?> revokeCertificate(@PathVariable Long id, @RequestBody Map<String, String> request, @AuthenticationPrincipal User user) {
-        // Provjera autorizacije
-        // TODO: ovo zavrsiti kad se bude radila revokacija
-        /*if (!certificateService.canUserRevokeCertificate(id, user)) {
-            return ResponseEntity.status(403).body(Map.of("message", "Not authorized to revoke this certificate"));
-        }*/
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> revokeCertificate(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            // Dohvatamo kompletan User objekat iz baze
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        String reason = request.get("reason");
-        certificateService.revokeCertificate(id, reason);
-        return ResponseEntity.ok(Map.of("message", "Certificate revoked successfully"));
+            Certificate certificate = certificateService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+            if (!canUserRevokeCertificate(certificate, user)) {
+                return ResponseEntity.status(403)
+                        .body(Map.of("message", "Not authorized to revoke this certificate"));
+            }
+
+            String reason = request.get("reason");
+            if (!isValidRevocationReason(reason)) {
+                return ResponseEntity.badRequest()
+                        .body(Map.of("message", "Invalid revocation reason"));
+            }
+
+            certificateService.revokeCertificate(id, reason);
+
+            // Ne vraćamo CRL URL ovde, klijent će ga sam formirati ako je potrebno
+            return ResponseEntity.ok(Map.of(
+                    "message", "Certificate revoked successfully"
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500)
+                    .body(Map.of("message", "Error revoking certificate: " + e.getMessage()));
+        }
+    }
+
+    private boolean canUserRevokeCertificate(Certificate certificate, User user) {
+        // ADMIN može sve
+        if (user.getRole() == UserRole.ADMIN) return true;
+
+        // Vlasnik može svoj intermediate sertifikat
+        if (certificate.getOwner().getId().equals(user.getId())) return true;
+
+        // CA može sertifikate iz svoje organizacije
+        if (user.getRole() == UserRole.CA) {
+            return certificate.getOwner().getOrganization().equals(user.getOrganization());
+        }
+
+        return false;
+    }
+
+    private boolean isValidRevocationReason(String reason) {
+        List<String> validReasons = List.of(
+                "unspecified", "keyCompromise", "cACompromise",
+                "affiliationChanged", "superseded", "cessationOfOperation",
+                "certificateHold", "removeFromCRL", "privilegeWithdrawn", "aACompromise"
+        );
+        return reason != null && validReasons.contains(reason);
     }
 
     // GET - Pojedinačni sertifikat
