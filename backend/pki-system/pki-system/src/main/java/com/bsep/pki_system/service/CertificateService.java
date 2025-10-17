@@ -3,6 +3,7 @@ package com.bsep.pki_system.service;
 import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
+import org.springframework.context.annotation.Lazy;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.springframework.stereotype.Service;
 
@@ -30,8 +31,8 @@ public class CertificateService {
 
 
     public CertificateService(CertificateRepository certificateRepository,
-                              CertificateGeneratorService certificateGeneratorService,
-                              KeystoreService keystoreService,CRLService crlService) {
+                              @Lazy CertificateGeneratorService certificateGeneratorService,
+                              KeystoreService keystoreService, CRLService crlService) {
         this.certificateRepository = certificateRepository;
         this.certificateGeneratorService = certificateGeneratorService;
         this.keystoreService = keystoreService;
@@ -80,35 +81,7 @@ public class CertificateService {
         return certificate.getStatus() == CertificateStatus.VALID &&
                 certificate.getValidFrom().before(now) &&
                 certificate.getValidTo().after(now) &&
-                !isCertificateInCrl(certificate) &&
                 isChainValid(certificate);
-    }
-
-    private boolean isCertificateInCrl(Certificate certificate) {
-        try {
-            // Root sertifikat ne može biti na CRL listi jer nema izdavaoca
-            if (certificate.getIssuerCertificate() == null) {
-                return false;
-            }
-
-            Certificate issuer = certificate.getIssuerCertificate();
-
-            // Generišemo CRL za izdavaoca
-            byte[] crlBytes = crlService.generateCRL(issuer);
-
-            // Parsiramo CRL i proveravamo da li sadrži serijski broj našeg sertifikata
-            X509CRLHolder crlHolder = new X509CRLHolder(crlBytes);
-
-            // Konvertujemo serijski broj iz Stringa u BigInteger za proveru
-            BigInteger serialNumber = new BigInteger(certificate.getSerialNumber());
-
-            return crlHolder.getRevokedCertificate(serialNumber) != null;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            // "Fail-safe" pristup: ako ne možemo da proverimo CRL, smatramo da je sertifikat nevalidan
-            return true;
-        }
     }
 
     public void revokeCertificate(Long certificateId, String reason) {

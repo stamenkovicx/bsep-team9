@@ -39,7 +39,7 @@ public class CRLService {
 
         // 2. Učitaj privatni ključ CA-a
         String alias = "CA_" + caCertificate.getSerialNumber();
-        PrivateKey caPrivateKey = keystoreService.getPrivateKey(alias);
+        PrivateKey caPrivateKey = keystoreService.getPrivateKey(alias, caCertificate.getSerialNumber());
 
         // 3. Kreiraj CRL builder
         X500Name issuer = new X500Name(caCertificate.getSubject());

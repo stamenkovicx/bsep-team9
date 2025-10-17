@@ -4,6 +4,7 @@ import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.model.CertificateType;
 import com.bsep.pki_system.model.User;
+import com.bsep.pki_system.service.CertificateService;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -32,13 +33,16 @@ import java.util.List;
 public class CertificateGeneratorService {
 
     private final KeystoreService keystoreService;
+    private final CertificateService certificateService;
 
     static {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    public CertificateGeneratorService(KeystoreService keystoreService) {
+    public CertificateGeneratorService(KeystoreService keystoreService,
+                                       CertificateService certificateService) {
         this.keystoreService = keystoreService;
+        this.certificateService = certificateService;
     }
 
     public KeystoreService getKeystoreService() {
@@ -81,12 +85,7 @@ public class CertificateGeneratorService {
         X509CertificateHolder certHolder = certBuilder.build(signer);
         X509Certificate x509Cert = new JcaX509CertificateConverter().getCertificate(certHolder);
 
-        // 7. Čuvanje privatnog ključa u keystore
-        //String alias = "ROOT_" + serialNumber.toString();
-        String alias = "CA_" + serialNumber.toString(); // isti prefiks za sve CA sertifikate (i root i intermediate)
-        keystoreService.savePrivateKey(alias, keyPair.getPrivate(), x509Cert);
-
-        // 8. Čuvanje u našem Certificate modelu
+        // 7. Čuvanje u našem Certificate modelu
         Certificate certificate = new Certificate();
         certificate.setSerialNumber(serialNumber.toString());
         certificate.setSubject(subject.toString());
@@ -100,7 +99,15 @@ public class CertificateGeneratorService {
         certificate.setOwner(owner);
         certificate.setKeyUsage("keyCertSign, cRLSign");
 
-        return certificate;
+        // 7a. PRVO SAČUVAJ CERTIFICATE U BAZU
+        Certificate savedCertificate = certificateService.saveCertificate(certificate);
+
+        // 8. Čuvanje privatnog ključa u keystore
+        String alias = "CA_" + serialNumber.toString(); // isti prefiks za sve CA sertifikate (i root i intermediate)
+        keystoreService.savePrivateKey(alias, keyPair.getPrivate(), x509Cert, serialNumber.toString());
+
+
+        return savedCertificate;
     }
 
     private KeyPair generateKeyPair() throws NoSuchAlgorithmException {
@@ -153,7 +160,7 @@ public class CertificateGeneratorService {
         X500Name subject = createX500Name(request);
 
         // 3. Uzimanje podataka o izdavaocu (issueru)
-        PrivateKey issuerPrivateKey = keystoreService.getPrivateKey("CA_" + issuerCertificate.getSerialNumber());
+        PrivateKey issuerPrivateKey = keystoreService.getPrivateKey("CA_" + issuerCertificate.getSerialNumber(), issuerCertificate.getSerialNumber());
         X500Name issuer = new X500Name(issuerCertificate.getSubject());
 
         // Priprema za SKI i AKI
@@ -198,12 +205,7 @@ public class CertificateGeneratorService {
         X509CertificateHolder certHolder = certBuilder.build(signer);
         X509Certificate x509Cert = new JcaX509CertificateConverter().getCertificate(certHolder);
 
-        // 8. Čuvanje privatnog ključa sa lancem u keystore
-        String alias = "CA_" + serialNumber.toString();
-        java.security.cert.Certificate[] chain = buildCertificateChain(issuerCertificate, x509Cert);
-        keystoreService.savePrivateKeyWithChain(alias, keyPair.getPrivate(), chain);
-
-        // 9. Kreiranje našeg modela za čuvanje u bazi
+        // 8. Kreiranje našeg modela za čuvanje u bazi
         Certificate certificate = new Certificate();
         certificate.setSerialNumber(serialNumber.toString());
         certificate.setSubject(subject.toString());
@@ -218,7 +220,15 @@ public class CertificateGeneratorService {
         certificate.setOwner(owner);
         certificate.setIssuerCertificate(issuerCertificate);
 
-        return certificate;
+        // 8a. PRVO SAČUVAJ CERTIFICATE U BAZU
+        Certificate savedCertificate = certificateService.saveCertificate(certificate);
+
+        // 9. Čuvanje privatnog ključa sa lancem u keystore
+        String alias = "CA_" + serialNumber.toString();
+        java.security.cert.Certificate[] chain = buildCertificateChain(issuerCertificate, x509Cert);
+        keystoreService.savePrivateKeyWithChain(alias, keyPair.getPrivate(), chain, serialNumber.toString());
+
+        return savedCertificate;
     }
     private void addCRLDistributionPoint(X509v3CertificateBuilder builder, String issuerSerialNumber) throws Exception {
         // URL gde će biti dostupna CRL lista
