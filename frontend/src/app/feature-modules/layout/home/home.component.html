@@ -18,6 +18,19 @@
       <p>Manage your certificates and certificate authorities</p>
     </div>
 
+    <!-- ✅ SUCCESS/ERROR MESSAGE -->
+    <mat-card *ngIf="message.text" [class]="'message-alert ' + message.type">
+      <mat-card-content>
+        <div class="message-content">
+          <mat-icon>{{ message.type === 'success' ? 'check_circle' : 'error' }}</mat-icon>
+          <span>{{ message.text }}</span>
+          <button mat-icon-button (click)="clearMessage()">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
     <div class="quick-actions">
       <!-- ADMIN / CA -->
       <div *ngIf="isAdmin() || isCA()" class="action-card" routerLink="/certificates">
@@ -66,20 +79,110 @@
         </button>
       </div>
 
+      <!-- ✅ UPGRADED CERTIFICATE LIST -->
       <div class="certificate-list" *ngIf="!isLoading && recentCertificates.length > 0">
         <div class="certificate-item" *ngFor="let cert of recentCertificates">
-          <mat-icon [class]="getStatusIcon(cert.status)">
-            {{ getStatusIcon(cert.status) }}
-          </mat-icon>
+          <div class="cert-icon">
+            <mat-icon [class]="'status-icon ' + cert.status.toLowerCase()">
+              {{ getStatusIcon(cert.status) }}
+            </mat-icon>
+          </div>
+          
           <div class="certificate-info">
             <strong>{{ extractCommonName(cert.subject) }}</strong>
             <span class="cert-type">({{ cert.type }})</span>
+            
+            <!-- ✅ REVOKED INFO -->
+            <div *ngIf="cert.status === 'REVOKED'" class="revoked-info">
+              <small>
+                🚫 Revoked: {{ getRevocationReasonLabel(cert.revocationReason || '') }}
+              </small>
+            </div>
           </div>
+          
           <span class="cert-status" [class]="cert.status.toLowerCase()">
             {{ cert.status }}
           </span>
+
+          <!-- ✅ ACTION BUTTONS -->
+          <div class="cert-actions" *ngIf="isAdmin() || isCA()">
+            <!-- Revoke Button -->
+            <button *ngIf="canRevoke(cert)" 
+                    mat-icon-button 
+                    color="warn"
+                    (click)="openRevokeDialog(cert)"
+                    matTooltip="Revoke Certificate">
+              <mat-icon>cancel</mat-icon>
+            </button>
+
+            <!-- Download CRL -->
+            <button *ngIf="cert.type === 'INTERMEDIATE'" 
+                    mat-icon-button
+                    (click)="downloadCRL(cert)"
+                    matTooltip="Download CRL">
+              <mat-icon>download</mat-icon>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- ✅ REVOCATION DIALOG -->
+<ng-template #revokeDialog>
+  <h2 mat-dialog-title>
+    <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <mat-icon color="warn">warning</mat-icon>
+      <span>Revoke Certificate</span>
+    </div>
+  </h2>
+  
+  <mat-dialog-content>
+    <div class="revoke-dialog-content">
+      <div class="cert-details">
+        <p><strong>Serial Number:</strong></p>
+        <p class="serial-mono">{{ selectedCertificate?.serialNumber }}</p>
+        
+        <p><strong>Subject:</strong></p>
+        <p>{{ extractCommonName(selectedCertificate?.subject || '') }}</p>
+      </div>
+      
+      <mat-card class="warning-card">
+        <mat-card-content>
+          <div style="display: flex; gap: 1rem; align-items: flex-start;">
+            <mat-icon style="color: #ff9800;">info</mat-icon>
+            <p style="margin: 0;">
+              <strong>Warning:</strong> This action is irreversible. The revoked certificate 
+              will not be able to issue new certificates.
+            </p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-form-field appearance="outline" style="width: 100%; margin-top: 1rem;">
+        <mat-label>Revocation Reason (X.509 Standard) *</mat-label>
+        <mat-select [(value)]="selectedReason" required>
+          <mat-option *ngFor="let reason of revocationReasons" [value]="reason.value">
+            {{ reason.label }} - {{ reason.description }}
+          </mat-option>
+        </mat-select>
+        <mat-error>Please select a revocation reason</mat-error>
+      </mat-form-field>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="closeDialog()" [disabled]="revoking">
+      Cancel
+    </button>
+    <button mat-raised-button 
+            color="warn" 
+            [disabled]="!selectedReason || revoking"
+            (click)="confirmRevoke()">
+      <mat-spinner *ngIf="revoking" diameter="20" style="display: inline-block; margin-right: 0.5rem;"></mat-spinner>
+      <mat-icon *ngIf="!revoking">cancel</mat-icon>
+      {{ revoking ? 'Revoking...' : 'Confirm Revocation' }}
+    </button>
+  </mat-dialog-actions>
+</ng-template>

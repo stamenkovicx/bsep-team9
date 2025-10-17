@@ -7,6 +7,10 @@ import { RouterModule } from '@angular/router';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatCardModule } from "@angular/material/card";
 import { FormsModule } from '@angular/forms';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSelectModule } from '@angular/material/select';
+import { MatFormFieldModule } from '@angular/material/form-field';
 
 @NgModule({
   declarations: [
@@ -20,6 +24,10 @@ import { FormsModule } from '@angular/forms';
     MatProgressSpinnerModule,
     MatCardModule,
     FormsModule,
+    MatDialogModule,
+    MatTooltipModule,
+    MatSelectModule,
+    MatFormFieldModule
 
 ],
   exports: [

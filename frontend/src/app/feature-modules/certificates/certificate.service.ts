@@ -41,4 +41,16 @@ export class CertificateService {
       responseType: 'blob'
     });
   }
+  revokeCertificate(id: number, reason: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/${id}/revoke`, { reason });
+  }
+  isCertificateValid(id: number): Observable<{ valid: boolean }> {
+    return this.http.get<{ valid: boolean }>(`${this.apiUrl}/${id}/valid`);
+  }
+
+  downloadCRL(issuerSerialNumber: string): Observable<Blob> {
+    return this.http.get(`http://localhost:8089/api/crl/${issuerSerialNumber}.crl`, {
+      responseType: 'blob'
+    });
+  }
 }
