@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { CertificateTemplatesService } from '../certificate-templates.service';
 import { CertificateTemplate } from '../models/certificate-template.interface';
 import { CreateTemplateDTO } from '../models/create-template.dto';
+import { CertificateService } from '../../certificates/certificate.service';
 
 @Component({
   selector: 'app-certificate-templates',
@@ -22,6 +23,7 @@ export class CertificateTemplatesComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private templatesService: CertificateTemplatesService,
+    private certificateService: CertificateService, 
     private snackBar: MatSnackBar
   ) {
     this.templateForm = this.createTemplateForm();
@@ -62,12 +64,31 @@ export class CertificateTemplatesComponent implements OnInit {
   }
 
   loadCaIssuers(): void {
-    // Ovdje treba da pozoveš service da dobiješ CA issuere
-    // Za sada mock podaci
-    this.caIssuers = [
-      { id: 1, name: 'My Root CA' },
-      { id: 2, name: 'Intermediate CA 1' }
-    ];
+    this.certificateService.getIssuers().subscribe({
+      next: (issuers) => {
+        // Filtriraj samo CA sertifikate (Root i Intermediate)
+        this.caIssuers = issuers.filter(issuer => 
+          issuer.type === 'ROOT' || issuer.type === 'INTERMEDIATE'
+        ).map(issuer => ({
+          id: issuer.id,
+          name: this.extractCommonName(issuer.subject) + ` (${issuer.type})`
+        }));
+        
+        console.log('Loaded CA issuers:', this.caIssuers);
+      },
+      error: (error) => {
+        console.error('Error loading CA issuers:', error);
+        this.showError('Failed to load CA issuers');
+        // Fallback na praznu listu
+        this.caIssuers = [];
+      }
+    });
+  }
+
+  private extractCommonName(subject: string): string {
+    if (!subject) return 'Unknown Issuer';
+    const cnMatch = subject.match(/CN=([^,]+)/);
+    return cnMatch ? cnMatch[1] : 'Unnamed Certificate';
   }
 
   onSubmit(): void {

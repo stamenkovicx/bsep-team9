@@ -8,12 +8,15 @@
 /* Header Section */
 .header-section {
   margin-bottom: 32px;
+  display: flex;
+  justify-content: center;
 }
 
 .header-card {
   padding: 24px 32px;
   border-radius: 12px;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  width: 80%;
 }
 
 ::ng-deep .header-card .mat-card-header-text {
@@ -49,12 +52,15 @@
 /* Form Section */
 .form-section {
   margin-bottom: 40px;
+  display: flex;
+  justify-content: center;
 }
 
 .form-card {
   padding: 32px 40px;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  width: 80%;
 }
 
 ::ng-deep .form-card mat-icon[mat-card-avatar] {
@@ -136,12 +142,15 @@
 /* List Section */
 .list-section {
   margin-top: 32px;
+  display: flex;
+  justify-content: center;
 }
 
 .list-card {
   padding: 32px;
   border-radius: 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  width: 80%;
 }
 
 ::ng-deep .list-card mat-icon[mat-card-avatar] {
