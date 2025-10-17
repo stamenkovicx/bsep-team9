@@ -43,7 +43,7 @@ public class CertificateTemplate {
     @Column(name = "max_validity_days")
     private Integer maxValidityDays;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "template_key_usage", joinColumns = @JoinColumn(name = "template_id"))
     @Column(name = "key_usage_bit")
     private List<Boolean> keyUsage;

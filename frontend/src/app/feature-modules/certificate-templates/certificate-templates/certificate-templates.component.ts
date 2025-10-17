@@ -17,7 +17,7 @@ export class CertificateTemplatesComponent implements OnInit {
   currentTemplateId?: number;
   isLoading = false;
   showForm = false;
-  selectedTemplateType: 'ROOT' | 'INTERMEDIATE' | 'END_ENTITY' = 'ROOT';
+  caIssuers: any[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -29,33 +29,20 @@ export class CertificateTemplatesComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadTemplates();
+    this.loadCaIssuers();
   }
 
   createTemplateForm(): FormGroup {
     return this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
       description: [''],
-      certificateType: ['ROOT' as 'ROOT' | 'INTERMEDIATE' | 'END_ENTITY', Validators.required],
-      
-      // Subject Information
-      subjectCommonName: ['', Validators.required],
-      subjectOrganization: ['', Validators.required],
-      subjectOrganizationalUnit: [''],
-      subjectCountry: ['', [Validators.required, Validators.maxLength(2)]],
-      subjectState: [''],
-      subjectLocality: [''],
-      subjectEmail: ['', Validators.email],
-      
-      // Validity
-      validityDays: [365, [Validators.required, Validators.min(1), Validators.max(3650)]],
-      
-      // Extensions
-      basicConstraints: [true],
-      digitalSignature: [false],
-      keyEncipherment: [false],
-      keyAgreement: [false],
-      keyCertSign: [true],
-      cRLSign: [true]
+      caIssuerId: [null, Validators.required],
+      commonNameRegex: ['.*'],
+      sansRegex: ['.*'],
+      maxValidityDays: [365, [Validators.required, Validators.min(1), Validators.max(3650)]],
+      keyUsage: ['digitalSignature,keyEncipherment'],
+      extendedKeyUsage: ['serverAuth,clientAuth'],
+      basicConstraints: ['CA:FALSE']
     });
   }
 
@@ -74,26 +61,13 @@ export class CertificateTemplatesComponent implements OnInit {
     });
   }
 
-  onTemplateTypeChange(): void {
-    const type = this.templateForm.get('certificateType')?.value;
-    this.selectedTemplateType = type as 'ROOT' | 'INTERMEDIATE' | 'END_ENTITY';
-    this.updateFormValidation();
-  }
-
-  private updateFormValidation(): void {
-    const basicConstraintsControl = this.templateForm.get('basicConstraints');
-    const keyCertSignControl = this.templateForm.get('keyCertSign');
-    const cRLSignControl = this.templateForm.get('cRLSign');
-
-    if (this.selectedTemplateType === 'ROOT' || this.selectedTemplateType === 'INTERMEDIATE') {
-      basicConstraintsControl?.setValue(true);
-      keyCertSignControl?.setValue(true);
-      cRLSignControl?.setValue(true);
-    } else { // END_ENTITY
-      basicConstraintsControl?.setValue(false);
-      keyCertSignControl?.setValue(false);
-      cRLSignControl?.setValue(false);
-    }
+  loadCaIssuers(): void {
+    // Ovdje treba da pozoveš service da dobiješ CA issuere
+    // Za sada mock podaci
+    this.caIssuers = [
+      { id: 1, name: 'My Root CA' },
+      { id: 2, name: 'Intermediate CA 1' }
+    ];
   }
 
   onSubmit(): void {
@@ -108,53 +82,19 @@ export class CertificateTemplatesComponent implements OnInit {
     const templateData: CreateTemplateDTO = {
       name: formValue.name,
       description: formValue.description,
-      certificateType: formValue.certificateType,
       caIssuerId: 14,
-      subjectCommonName: formValue.subjectCommonName,
-      subjectOrganization: formValue.subjectOrganization,
-      subjectOrganizationalUnit: formValue.subjectOrganizationalUnit,
-      subjectCountry: formValue.subjectCountry,
-      subjectState: formValue.subjectState,
-      subjectLocality: formValue.subjectLocality,
-      subjectEmail: formValue.subjectEmail,
-      maxValidityDays: formValue.validityDays,
-      basicConstraints: formValue.basicConstraints,
-      keyUsage: [
-        formValue.digitalSignature,
-        formValue.keyEncipherment,
-        formValue.keyAgreement,
-        formValue.keyCertSign,
-        formValue.cRLSign,
-        false, false, false, false // remaining bits
-      ]
+      commonNameRegex: formValue.commonNameRegex,
+      sansRegex: formValue.sansRegex,
+      maxValidityDays: formValue.maxValidityDays,
+      keyUsage: this.getKeyUsageArray(formValue.keyUsage),
+      extendedKeyUsage: formValue.extendedKeyUsage,
+      basicConstraints: formValue.basicConstraints
     };
 
-    // FIX: Kreiraj CertificateTemplate objekat sa ispravnim tipom
-    const updateData: CertificateTemplate = {
-      id: this.currentTemplateId!,
-      name: templateData.name,
-      description: templateData.description,
-      certificateType: templateData.certificateType,
-      subjectCommonName: templateData.subjectCommonName,
-      subjectOrganization: templateData.subjectOrganization,
-      subjectOrganizationalUnit: templateData.subjectOrganizationalUnit,
-      subjectCountry: templateData.subjectCountry,
-      subjectState: templateData.subjectState,
-      subjectLocality: templateData.subjectLocality,
-      subjectEmail: templateData.subjectEmail,
-      maxValidityDays: templateData.maxValidityDays,
-      basicConstraints: templateData.basicConstraints,
-      keyUsage: {
-        digitalSignature: templateData.keyUsage[0],
-        keyEncipherment: templateData.keyUsage[1],
-        keyAgreement: templateData.keyUsage[2],
-        keyCertSign: templateData.keyUsage[3],
-        cRLSign: templateData.keyUsage[4]
-      }
-    };
+    console.log('Sending template data to backend:', templateData);
 
     const apiCall = this.isEditing && this.currentTemplateId
-      ? this.templatesService.updateTemplate(this.currentTemplateId, updateData)
+      ? this.templatesService.updateTemplate(this.currentTemplateId, templateData)
       : this.templatesService.createTemplate(templateData);
 
     apiCall.subscribe({
@@ -168,7 +108,7 @@ export class CertificateTemplatesComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error saving template:', error);
-        this.showError('Failed to save template');
+        this.showError(error.message || 'Failed to save template');
         this.isLoading = false;
       }
     });
@@ -182,25 +122,36 @@ export class CertificateTemplatesComponent implements OnInit {
     this.templateForm.patchValue({
       name: template.name,
       description: template.description,
-      caIssuerId: 14,
-      certificateType: template.certificateType,
-      subjectCommonName: template.subjectCommonName,
-      subjectOrganization: template.subjectOrganization,
-      subjectOrganizationalUnit: template.subjectOrganizationalUnit,
-      subjectCountry: template.subjectCountry,
-      subjectState: template.subjectState,
-      subjectLocality: template.subjectLocality,
-      subjectEmail: template.subjectEmail,
+      caIssuerId: template.caIssuerId,
+      commonNameRegex: template.commonNameRegex,
+      sansRegex: template.sansRegex,
       maxValidityDays: template.maxValidityDays,
-      basicConstraints: template.basicConstraints,
-      digitalSignature: template.keyUsage.digitalSignature,
-      keyEncipherment: template.keyUsage.keyEncipherment,
-      keyAgreement: template.keyUsage.keyAgreement,
-      keyCertSign: template.keyUsage.keyCertSign,
-      cRLSign: template.keyUsage.cRLSign
+      keyUsage: this.getKeyUsageString(template.keyUsage),
+      extendedKeyUsage: template.extendedKeyUsage,
+      basicConstraints: template.basicConstraints
     });
+  }
 
-    this.selectedTemplateType = template.certificateType;
+  private getKeyUsageString(keyUsage: boolean[]): string {
+    const usages = [];
+    if (keyUsage[0]) usages.push('digitalSignature');
+    if (keyUsage[1]) usages.push('keyEncipherment');
+    if (keyUsage[2]) usages.push('keyAgreement');
+    if (keyUsage[3]) usages.push('keyCertSign');
+    if (keyUsage[4]) usages.push('cRLSign');
+    return usages.join(',');
+  }
+
+  private getKeyUsageArray(keyUsageString: string): boolean[] {
+    const usages = keyUsageString.split(',');
+    return [
+      usages.includes('digitalSignature'),
+      usages.includes('keyEncipherment'),
+      usages.includes('keyAgreement'),
+      usages.includes('keyCertSign'),
+      usages.includes('cRLSign'),
+      false, false, false, false
+    ];
   }
 
   onDeleteTemplate(templateId: number): void {
@@ -232,16 +183,16 @@ export class CertificateTemplatesComponent implements OnInit {
 
   resetForm(): void {
     this.templateForm.reset({
-      certificateType: 'ROOT',
-      validityDays: 365,
-      basicConstraints: true,
-      keyCertSign: true,
-      cRLSign: true
+      commonNameRegex: '.*',
+      sansRegex: '.*',
+      maxValidityDays: 365,
+      keyUsage: 'digitalSignature,keyEncipherment',
+      extendedKeyUsage: 'serverAuth,clientAuth',
+      basicConstraints: 'CA:FALSE'
     });
     this.isEditing = false;
     this.currentTemplateId = undefined;
     this.showForm = false;
-    this.selectedTemplateType = 'ROOT';
   }
 
   private showSuccess(message: string): void {
@@ -256,18 +207,5 @@ export class CertificateTemplatesComponent implements OnInit {
       duration: 5000,
       panelClass: ['error-snackbar']
     });
-  }
-
-  getTemplateIcon(certificateType: string): string {
-    switch (certificateType) {
-      case 'ROOT':
-        return 'security';
-      case 'INTERMEDIATE':
-        return 'verified_user';
-      case 'END_ENTITY':
-        return 'person';
-      default:
-        return 'description';
-    }
   }
 }
