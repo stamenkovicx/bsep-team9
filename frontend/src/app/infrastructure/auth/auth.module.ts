@@ -7,6 +7,9 @@ import { RegistrationComponent } from './registration/registration.component';
 import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
 import { MatCardModule } from '@angular/material/card';
 import { RouterModule } from '@angular/router';
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field'; 
+
 
 
 
@@ -23,7 +26,9 @@ import { RouterModule } from '@angular/router';
     RecaptchaModule,
     RecaptchaFormsModule,
     MatCardModule,
-    RouterModule
+    RouterModule,
+    MatFormFieldModule,
+    MatInputModule
   ],
   exports: [
     LoginComponent,

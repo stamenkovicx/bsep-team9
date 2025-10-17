@@ -1,9 +1,8 @@
 package com.bsep.pki_system.controller;
 
-import com.bsep.pki_system.dto.LoginDTO;
-import com.bsep.pki_system.dto.LoginResponseDTO;
-import com.bsep.pki_system.dto.RegisterDTO;
+import com.bsep.pki_system.dto.*;
 import com.bsep.pki_system.jwt.JwtService;
+import com.bsep.pki_system.jwt.UserPrincipal;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.service.EmailVerificationService;
@@ -12,7 +11,10 @@ import com.bsep.pki_system.service.UserService;
 import com.bsep.pki_system.validator.PasswordValidator;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import com.bsep.pki_system.service.TwoFactorService;
 
 import java.util.Map;
 import java.util.Optional;
@@ -26,17 +28,20 @@ public class AuthController {
     private final PasswordValidator passwordValidator;
     private final EmailVerificationService emailVerificationService;
     private final RecaptchaService recaptchaService;
+    private final TwoFactorService twoFactorService;
 
     public AuthController(UserService userService,
                           JwtService jwtService,
                           PasswordValidator passwordValidator,
                           EmailVerificationService emailVerificationService,
-                          RecaptchaService recaptchaService) {
+                          RecaptchaService recaptchaService,
+                          TwoFactorService twoFactorService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.passwordValidator = passwordValidator;
         this.emailVerificationService = emailVerificationService;
         this.recaptchaService = recaptchaService;
+        this.twoFactorService = twoFactorService;
     }
 
     @PostMapping("/register")
@@ -107,7 +112,7 @@ public class AuthController {
         }
 
         // Provera da li je nalog već verifikovan
-        if (user.isEnabled()) {
+        if (user.getEnabled()) {
             return ResponseEntity.badRequest().body("Account is already verified");
         }
 
@@ -121,23 +126,60 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginDTO request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginWith2FADTO request) {
 
-        if (!recaptchaService.verify(request.getRecaptchaToken())) {
+        // Ako je twoFactorCode poslat, to je drugi korak prijave
+        // Preskacemo reCAPTCHA proveru jer je stari token istekao
+        boolean isSecondStep = request.getTwoFactorCode() != null && !request.getTwoFactorCode().isEmpty();
+
+        if (!isSecondStep && !recaptchaService.verify(request.getRecaptchaToken())) {
             return ResponseEntity.badRequest().body("reCAPTCHA verification failed");
         }
 
+        // 1. Provera lozinke i postojanja korisnika
         User user = userService.login(request.getEmail(), request.getPassword());
 
         if (user == null) {
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
 
-        // Provera da li je nalog verifikovan
-        if (!user.isEnabled()) {
+        // Provera verifikacije naloga
+        if (!user.getEnabled()) {
             return ResponseEntity.badRequest().body("Please verify your email before logging in");
         }
 
+        // 2. LOGIKA ZA 2FA
+        if (user.getIs2faEnabled()) {
+            String secret = user.getTwoFactorSecret();
+
+            // Provera sigurnosti: ako je 2FA enabled, kljuc MORA postojati
+            if (secret == null) {
+                return ResponseEntity.status(500).body(Map.of("message", "Internal security error (Missing 2FA key)."));
+            }
+
+            // A. Ako 2FA kod NIJE poslat (prvi korak prijavljivanja)
+            if (!isSecondStep) {
+                // Signaliziramo frontendu da je potrebna 2FA provera
+                return ResponseEntity.status(401).body(Map.of(
+                        "message", "2FA code required.",
+                        "twoFactorRequired", true
+                ));
+            }
+
+            // B. Validacija unetog 2FA koda (drugi korak)
+            try {
+                int code = Integer.parseInt(request.getTwoFactorCode());
+
+                // Provera koda koristeći TwoFactorService
+                if (!twoFactorService.isCodeValid(secret, code)) {
+                    return ResponseEntity.status(401).body(Map.of("message", "Invalid 2FA code."));
+                }
+            } catch (NumberFormatException e) {
+                return ResponseEntity.status(401).body(Map.of("message", "Invalid 2FA code format. Only numbers allowed."));
+            }
+        }
+
+        // 3. USPESNA PRIJAVA (Generisanje tokena)
         String token = jwtService.generateToken(user);
         return ResponseEntity.ok(new LoginResponseDTO(token, user.getId(), user.getEmail(), user.getRole().toString()));
     }
@@ -152,7 +194,7 @@ public class AuthController {
 
         User user = userOpt.get();
 
-        if (user.isEnabled()) {
+        if (user.getEnabled()) {
             return ResponseEntity.badRequest().body("Account is already verified");
         }
 
@@ -168,6 +210,63 @@ public class AuthController {
             return ResponseEntity.ok("Verification email resent successfully");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Failed to resend verification email");
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/2fa/setup")
+    public ResponseEntity<?> setup2FA(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            if (userPrincipal == null) {
+                return ResponseEntity.status(401).body(Map.of("message", "User not authenticated"));
+            }
+
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            if (user.getIs2faEnabled() != null && user.getIs2faEnabled()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "2FA is already enabled."));
+            }
+
+            String qrCodeUrl = twoFactorService.generateSecretAndQr(user);
+
+            return ResponseEntity.ok(Map.of("qrCodeUrl", qrCodeUrl));
+
+        } catch (Exception e) {
+            e.printStackTrace(); // ← Ovo će prikazati ceo stack trace
+            return ResponseEntity.status(500).body(Map.of("message", "Error setting up 2FA: " + e.getMessage()));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/2fa/verify")
+    public ResponseEntity<?> verify2FA(@RequestBody TwoFACodeDTO dto, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            // Provera da li postoji privremeni kljuc i da 2FA nije već aktiviran
+            if (user.getTwoFactorSecret() == null || user.getIs2faEnabled()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "2FA setup was not initiated or is already complete."));
+            }
+
+            // Pokusaj parsiranja koda
+            int code = Integer.parseInt(dto.getCode());
+
+            // Validacija koda
+            if (twoFactorService.isCodeValid(user.getTwoFactorSecret(), code)) {
+                // Ako je kod validan, aktiviraj 2FA
+                twoFactorService.confirm2faActivation(user);
+                return ResponseEntity.ok(Map.of("message", "2FA successfully enabled!"));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("message", "Invalid 2FA code. Please try again."));
+            }
+
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid code format."));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Error verifying 2FA: " + e.getMessage()));
         }
     }
 }

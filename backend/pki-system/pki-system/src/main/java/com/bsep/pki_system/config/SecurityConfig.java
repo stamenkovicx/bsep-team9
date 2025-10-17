@@ -1,6 +1,7 @@
 package com.bsep.pki_system.config;
 
 import com.bsep.pki_system.jwt.JwtAuthFilter;
+import com.warrenstrange.googleauth.GoogleAuthenticator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -49,5 +50,9 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+    @Bean
+    public GoogleAuthenticator googleAuthenticator() {
+        return new GoogleAuthenticator();
     }
 }

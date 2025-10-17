@@ -10,10 +10,19 @@ import { AdministrationModule } from './feature-modules/administration/administr
 import { AuthModule } from './infrastructure/auth/auth.module';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { JwtInterceptor } from './infrastructure/auth/jwt/jwt.interceptor';
+import { MatCardModule } from '@angular/material/card';
+import { MatButtonModule } from '@angular/material/button';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { FormsModule } from '@angular/forms';
+import { TwoFactorDialogComponent } from './infrastructure/two-factor-dialog/two-factor-dialog.component';
+import { MatDialogModule } from "@angular/material/dialog";
+
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    TwoFactorDialogComponent
   ],
   imports: [
     BrowserModule,
@@ -23,8 +32,13 @@ import { JwtInterceptor } from './infrastructure/auth/jwt/jwt.interceptor';
     MaterialModule,
     AdministrationModule,
     AuthModule,
-    HttpClientModule
-  ],
+    HttpClientModule,
+    FormsModule,
+    MatCardModule,
+    MatButtonModule,
+    MatFormFieldModule,
+    MatDialogModule
+],
   providers: [
     {
       provide: HTTP_INTERCEPTORS,

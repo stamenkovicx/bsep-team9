@@ -41,6 +41,20 @@ public class UserService {
     }
 
     public User updateUser(User user) {
-        return userRepository.save(user);
+        System.out.println("=== UPDATING USER ===");
+        System.out.println("User ID: " + user.getId());
+        System.out.println("Email: " + user.getEmail());
+        System.out.println("is2faEnabled: " + user.getIs2faEnabled());
+        System.out.println("twoFactorSecret: " + (user.getTwoFactorSecret() != null ? "SET" : "NULL"));
+
+        if (user.getIs2faEnabled() == null) {
+            user.setIs2faEnabled(false);
+        }
+
+        User savedUser = userRepository.save(user);
+        System.out.println("User saved with ID: " + savedUser.getId());
+        System.out.println("=== USER UPDATED ===");
+
+        return savedUser;
     }
 }

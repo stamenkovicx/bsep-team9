@@ -20,6 +20,7 @@ export class HomeComponent implements OnInit {
   isLoading = true;
   currentUser: User | null = null;
 
+
   constructor(private certificateService: CertificateService, private authService: AuthService) {}
 
   ngOnInit(): void {
@@ -99,4 +100,5 @@ export class HomeComponent implements OnInit {
       default: return 'help';
     }
   }
+  
 }
