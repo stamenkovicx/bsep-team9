@@ -5,6 +5,7 @@ import { CertificateTemplatesService } from '../certificate-templates.service';
 import { CertificateTemplate } from '../models/certificate-template.interface';
 import { CreateTemplateDTO } from '../models/create-template.dto';
 import { CertificateService } from '../../certificates/certificate.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-certificate-templates',
@@ -24,7 +25,8 @@ export class CertificateTemplatesComponent implements OnInit {
     private fb: FormBuilder,
     private templatesService: CertificateTemplatesService,
     private certificateService: CertificateService, 
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private router: Router
   ) {
     this.templateForm = this.createTemplateForm();
   }
@@ -215,14 +217,33 @@ export class CertificateTemplatesComponent implements OnInit {
 
   onUseTemplate(template: CertificateTemplate): void {
     this.templatesService.useTemplate(template.id!).subscribe({
-      next: () => {
-        this.showSuccess(`Template "${template.name}" used successfully!`);
+      next: (response: any) => {
+        console.log('Template use response:', response);
+        
+        // Prikaži uspješnu poruku
+        this.showSuccess(`Template "${template.name}" loaded successfully!`);
+        
+        // prebaci korisnika na formu za sertifikate
+        // i proslijedi podatke iz šablona
+        this.navigateToCertificateForm(response.prefilledData, template);
       },
       error: (error) => {
         console.error('Error using template:', error);
-        this.showError('Failed to use template');
+        this.showError('Failed to use template: ' + (error.error?.message || error.message));
       }
     });
+  }
+
+  private navigateToCertificateForm(prefilledData: any, template: CertificateTemplate): void {
+    // Navigiraj na formu za sertifikate i proslijedi podatke
+    this.router.navigate(['/certificates/create'], { 
+      queryParams: { 
+        templateId: template.id,
+        templateName: template.name
+      }
+    });
+
+    this.templatesService.setCurrentTemplateData(prefilledData);
   }
 
   resetForm(): void {

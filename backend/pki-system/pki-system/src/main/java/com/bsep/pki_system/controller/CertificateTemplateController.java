@@ -3,6 +3,7 @@ package com.bsep.pki_system.controller;
 import com.bsep.pki_system.dto.CreateTemplateDTO;
 import com.bsep.pki_system.dto.TemplateResponseDTO;
 import com.bsep.pki_system.jwt.UserPrincipal;
+import com.bsep.pki_system.model.CertificateTemplate;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.service.CertificateTemplateService;
 import com.bsep.pki_system.service.UserService;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -141,6 +143,47 @@ public class CertificateTemplateController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", "Validation error: " + e.getMessage()));
         }
+    }
+
+    @PreAuthorize("hasRole('CA')")
+    @PostMapping("/{templateId}/use")
+    public ResponseEntity<?> useTemplate(
+            @PathVariable Long templateId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            CertificateTemplate template = templateService.findById(templateId, user);
+
+            // Vrati podatke šablona koji će se koristiti za formu sertifikata
+            Map<String, Object> response = new HashMap<>();
+            response.put("template", convertToResponseDTO(template));
+            response.put("prefilledData", getPrefilledCertificateData(template));
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Error using template: " + e.getMessage()));
+        }
+    }
+
+    // Metoda za prefilled data
+    private Map<String, Object> getPrefilledCertificateData(CertificateTemplate template) {
+        Map<String, Object> prefilledData = new HashMap<>();
+
+        prefilledData.put("caIssuerId", template.getCaIssuer().getId());
+        prefilledData.put("maxValidityDays", template.getMaxValidityDays());
+        prefilledData.put("keyUsage", template.getKeyUsage());
+        prefilledData.put("extendedKeyUsage", template.getExtendedKeyUsage());
+        prefilledData.put("basicConstraints", template.getBasicConstraints());
+        prefilledData.put("commonNameRegex", template.getCommonNameRegex());
+        prefilledData.put("sansRegex", template.getSansRegex());
+
+        return prefilledData;
     }
 
     private TemplateResponseDTO convertToResponseDTO(com.bsep.pki_system.model.CertificateTemplate template) {
