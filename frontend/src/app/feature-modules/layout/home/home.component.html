@@ -116,7 +116,7 @@
             </button>
 
             <!-- Download CRL -->
-            <button *ngIf="cert.type === 'INTERMEDIATE'" 
+            <button *ngIf="canRevoke(cert)"
                     mat-icon-button
                     (click)="downloadCRL(cert)"
                     matTooltip="Download CRL">

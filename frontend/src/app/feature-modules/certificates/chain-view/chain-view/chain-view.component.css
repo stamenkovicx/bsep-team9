@@ -1,72 +1,127 @@
+/* U 'src/app/feature-modules/certificates/chain-view/chain-view/chain-view.component.css' */
+
 .chain-container {
     padding-top: 16px;
-  }
-  
-  /* Stil za ceo red (node) u stablu */
-  .cert-row {
+}
+.cert-row {
     display: flex;
     align-items: center;
     width: 100%;
     padding: 8px 0; 
     box-sizing: border-box;
-  }
-  
-  /* 1. Ikonica sertifikata */
-  .cert-icon {
+}
+.cert-icon {
     margin-left: 8px;
     margin-right: 16px;
-    color: #007bff; /* Plava za CA/Root */
-  }
-  
-  /* Leaf node (End-Entity) ikonice mogu biti drugačije */
-  .leaf-node .cert-icon {
-    color: #6c757d; /* Siva za običan sertifikat */
-  }
-  
-  
-  /* 2. Informacije (Ime i tip) */
-  .cert-info {
-    flex-grow: 1; /* Zauzima sav preostali prostor */
+    color: #007bff;
+}
+.leaf-node .cert-icon {
+    color: #6c757d; 
+}
+.cert-info {
+    flex-grow: 1; 
     display: flex;
     flex-direction: column;
-  }
-  
-  .cert-name {
+}
+.cert-name {
     font-weight: 500;
     color: #333;
-  }
-  
-  /* 3. Status Chip (Stil kao na tvojoj slici) */
-  .cert-status-chip {
-    flex-grow: 0;
+}
+.cert-status-chip {
+    flex-shrink: 0;
     margin-left: 16px;
-    margin-right: 16px;
     padding: 4px 12px;
     border-radius: 16px; 
     font-weight: bold;
     font-size: 0.8em;
     text-transform: uppercase;
     color: white; 
-  }
-  
-  /* Boje za različite statuse */
-  .cert-status-chip.valid {
-    background-color: #28a745; /* Zelena */
+}
+.cert-status-chip.valid {
+    background-color: #28a745;
     box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-  }
-  
-  .cert-status-chip.revoked {
-    background-color: #dc3545; /* Crvena */
+}
+.cert-status-chip.revoked {
+    background-color: #dc3545;
     box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
-  }
-  
-  .cert-status-chip.expired {
-    background-color: #6c757d; /* Siva */
+}
+.cert-status-chip.expired {
+    background-color: #6c757d;
     box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
-  }
-  
-  /* Smanjujemo podrazumevanu visinu reda */
-  ::ng-deep .mat-tree-node, 
-  ::ng-deep .mat-nested-tree-node {
+}
+
+/* Smanjujemo podrazumevanu visinu reda */
+::ng-deep .mat-tree-node, 
+::ng-deep .mat-nested-tree-node {
     min-height: auto;
-  }
+}
+  
+/* Stil za dugmiće */
+.cert-actions {
+    flex-shrink: 0;
+    margin-left: 1rem;
+}
+  
+/* Stilovi za poruke (success/error) */
+.message-alert {
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+}
+.message-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.message-content span {
+    flex-grow: 1;
+}
+.message-alert.success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+}
+.message-alert.error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+}
+.message-alert mat-icon {
+    font-size: 20px;
+    height: 20px;
+    width: 20px;
+}
+.message-alert button {
+    padding: 0;
+    min-width: 0;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+}
+  
+/* Stilovi za dijalog */
+.revoke-dialog-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+.cert-details {
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 1rem;
+    border-radius: 8px;
+}
+.cert-details p {
+    margin: 0.25rem 0;
+}
+.serial-mono {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    word-break: break-all;
+}
+.warning-card {
+    background-color: #fffbe6;
+    color: #5d4037;
+    border: 1px solid #ffecb3;
+}
