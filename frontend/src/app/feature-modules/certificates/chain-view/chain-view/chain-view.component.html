@@ -15,78 +15,85 @@
     <mat-card-title>Certificate Chain View</mat-card-title>
     <mat-card-content class="chain-container">
   
-      <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
-        
-        <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
-          
-          <div class="cert-row leaf-node">
-            <button mat-icon-button disabled></button> 
-            <mat-icon class="cert-icon">check_circle</mat-icon>
-            
-            <div class="cert-info">
-              <span class="cert-name">{{node.name}}</span>
-            </div>
-  
-            <span class="cert-status-chip" [ngClass]="node.data.status.toLowerCase()">
-              {{node.data.status}}
-            </span>
-  
-            <div class="cert-actions" *ngIf="isAdmin() || isCA()">
-              <button *ngIf="canRevoke(node.data)" 
-                      mat-icon-button 
-                      color="warn"
-                      (click)="openRevokeDialog(node.data)"
-                      matTooltip="Revoke Certificate">
-                <mat-icon>cancel</mat-icon>
-              </button>
-  
-              <button *ngIf="node.data.isCA" 
-                      mat-icon-button
-                      (click)="downloadCRL(node.data)"
-                      matTooltip="Download CRL">
-                <mat-icon>download</mat-icon>
-              </button>
-            </div>
-          </div>
-        </mat-tree-node>
-  
-        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
-          
-          <div class="cert-row">
-            <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
-              <mat-icon class="mat-icon-rtl-mirror">
-                {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
-              </mat-icon>
-            </button>
-            <mat-icon class="cert-icon ca">account_balance</mat-icon>
-  
-            <div class="cert-info">
-              <span class="cert-name">{{node.name}}</span>
-            </div>
-  
-            <span class="cert-status-chip" [ngClass]="node.data.status.toLowerCase()">
-              {{node.data.status}}
-            </span>
-  
-            <div class="cert-actions" *ngIf="isAdmin() || isCA()">
-              <button *ngIf="canRevoke(node.data)" 
-                      mat-icon-button 
-                      color="warn"
-                      (click)="openRevokeDialog(node.data)"
-                      matTooltip="Revoke Certificate">
-                <mat-icon>cancel</mat-icon>
-              </button>
-  
-              <button *ngIf="node.data.isCA" 
-                      mat-icon-button
-                      (click)="downloadCRL(node.data)"
-                      matTooltip="Download CRL">
-                <mat-icon>download</mat-icon>
-              </button>
-            </div>
-          </div>
-        </mat-tree-node>
-      </mat-tree>
+        <mat-tree [dataSource]="dataSource" [treeControl]="treeControl">
+
+            <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding>
+    
+              <div class="cert-row leaf-node"
+                    [matTooltip]="getTooltipText(node)"
+                    matTooltipPosition="above">
+                <button mat-icon-button disabled></button>
+                <mat-icon class="cert-icon">check_circle</mat-icon>
+    
+                <div class="cert-info">
+                  <span class="cert-name">{{node.name}}</span>
+                </div>
+    
+                <span class="cert-status-chip"
+                      [ngClass]="(node.data.status === 'REVOKED') ? 'revoked' : (node.isChainInvalid ? 'chain_invalid' : 'valid')">
+                  {{ (node.data.status === 'REVOKED') ? 'REVOKED' : (node.isChainInvalid ? 'INVALID' : 'VALID') }}
+                </span>
+    
+                <div class="cert-actions" *ngIf="isAdmin() || isCA()">
+                  <button *ngIf="canRevoke(node.data, node.isChainInvalid)"
+                          mat-icon-button
+                          color="warn"
+                          (click)="openRevokeDialog(node.data)"
+                          matTooltip="Revoke Certificate">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+    
+                  <button *ngIf="node.data.isCA"
+                          mat-icon-button
+                          (click)="downloadCRL(node.data)"
+                          matTooltip="Download CRL">
+                    <mat-icon>download</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </mat-tree-node>
+    
+            <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding>
+    
+              <div class="cert-row"
+              [matTooltip]="getTooltipText(node)"                  
+               matTooltipPosition="above">
+                <button mat-icon-button matTreeNodeToggle [attr.aria-label]="'toggle ' + node.name">
+                  <mat-icon class="mat-icon-rtl-mirror">
+                    {{treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right'}}
+                  </mat-icon>
+                </button>
+                <mat-icon class="cert-icon ca">account_balance</mat-icon>
+    
+                <div class="cert-info">
+                  <span class="cert-name">{{node.name}}</span>
+                </div>
+    
+                <span class="cert-status-chip"
+                      [ngClass]="(node.data.status === 'REVOKED') ? 'revoked' : (node.isChainInvalid ? 'chain_invalid' : 'valid')">
+                   {{ (node.data.status === 'REVOKED') ? 'REVOKED' : (node.isChainInvalid ? 'INVALID' : 'VALID') }}
+                </span>
+    
+    
+                <div class="cert-actions" *ngIf="isAdmin() || isCA()">
+                  <button *ngIf="canRevoke(node.data, node.isChainInvalid)"
+                          mat-icon-button
+                          color="warn"
+                          (click)="openRevokeDialog(node.data)"
+                          matTooltip="Revoke Certificate">
+                    <mat-icon>cancel</mat-icon>
+                  </button>
+    
+                  <button *ngIf="node.data.isCA"
+                          mat-icon-button
+                          (click)="downloadCRL(node.data)"
+                          matTooltip="Download CRL">
+                    <mat-icon>download</mat-icon>
+                  </button>
+                </div>
+              </div>
+            </mat-tree-node>
+          </mat-tree>
     </mat-card-content>
 </mat-card>
   

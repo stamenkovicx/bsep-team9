@@ -20,6 +20,7 @@ import { CertificatesRoutingModule } from './certificates-routing.module';
 import { CreateCertificateComponent } from './create-certificate/create-certificate.component';
 import { ChainViewComponent } from './chain-view/chain-view/chain-view.component';
 import { MatTreeModule } from '@angular/material/tree';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @NgModule({
   declarations: [
@@ -44,7 +45,8 @@ import { MatTreeModule } from '@angular/material/tree';
     MatButtonModule,
     MatProgressSpinnerModule,
     MatTreeModule,
-    MatDialogModule
+    MatDialogModule,
+    MatTooltipModule
   ]
 })
 export class CertificatesModule { }

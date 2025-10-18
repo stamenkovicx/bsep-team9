@@ -125,3 +125,18 @@
     color: #5d4037;
     border: 1px solid #ffecb3;
 }
+/* Na kraj fajla dodaj stil za novi status */
+.cert-status-chip.chain_invalid {
+    background-color: #ffc107; /* Žuta/Narandžasta */
+    color: #333; /* Tamniji tekst */
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
+}
+/* Stil za sam tooltip panel */
+::ng-deep .mat-tooltip,
+::ng-deep .mat-mdc-tooltip { /* Dodaj ovo za novije verzije Material-a */
+  background-color: #323232; /* Tamnija pozadina */
+  color: white;             /* Beli tekst */
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
