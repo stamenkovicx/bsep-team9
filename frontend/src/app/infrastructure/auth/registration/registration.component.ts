@@ -3,6 +3,7 @@ import { FormGroup, FormControl, Validators } from '@angular/forms';
 import { Registration } from '../model/registration.model';
 import { AuthService } from '../auth.service';
 import { Router } from '@angular/router';
+import { User } from '../model/user.model';
 
 @Component({
   selector: 'xp-registration',
@@ -17,21 +18,63 @@ export class RegistrationComponent {
     class: ''
   };
 
+  currentUser: User | null = null;
+
   constructor(
     private authService: AuthService,
     private router: Router
   ) {}
+
+  ngOnInit(): void {
+    this.loadCurrentUser();
+
+    // DINAMICKA VALIDACIJA
+    this.authService.user$.subscribe(user => {
+      this.currentUser = user;
+      this.updateFormValidation();
+    });
+  }
+
+  private updateFormValidation(): void {
+    const passwordControl = this.registrationForm.get('password');
+    const confirmPasswordControl = this.registrationForm.get('confirmPassword');
+
+    if (this.isAdmin()) {
+      // Admin: password polja NISU obavezna
+      passwordControl?.clearValidators();
+      confirmPasswordControl?.clearValidators();
+    } else {
+      // Običan korisnik: password polja SU obavezna
+      passwordControl?.setValidators([Validators.required]);
+      confirmPasswordControl?.setValidators([Validators.required]);
+    }
+
+    passwordControl?.updateValueAndValidity();
+    confirmPasswordControl?.updateValueAndValidity();
+  }
+
+  loadCurrentUser(): void {
+    this.authService.user$.subscribe(user => {
+      this.currentUser = user;
+    });
+  }
 
   registrationForm = new FormGroup({
     name: new FormControl('', [Validators.required]),
     surname: new FormControl('', [Validators.required]),
     email: new FormControl('', [Validators.required]),
     organization: new FormControl(''),
-    password: new FormControl('', [Validators.required]),
-    confirmPassword: new FormControl('', [Validators.required]),
+    password: new FormControl(''),
+    confirmPassword: new FormControl(''),
   });
 
   register(event?: Event): void {
+     // Ako je admin prijavljen, koristi CA registraciju
+    if (this.isAdmin()) {
+      this.registerCA(event);
+      return;
+    }
+
     // Spreci default browser form submission
     if (event) {
       event.preventDefault();
@@ -82,6 +125,49 @@ export class RegistrationComponent {
     }
   }
 
+  registerCA(event?: Event): void {
+    // Spreci default browser form submission
+    if (event) {
+      event.preventDefault();
+    }
+
+     if (this.registrationForm.get('name')?.invalid || 
+      this.registrationForm.get('surname')?.invalid || 
+      this.registrationForm.get('email')?.invalid) {
+        alert('Please fill out all required fields correctly.');
+        return;
+      }
+
+    // Za CA registraciju ne trebaju password polja u payloadu
+    const caRegistration = {
+      name: this.registrationForm.value.name || "",
+      surname: this.registrationForm.value.surname || "",
+      email: this.registrationForm.value.email || "",
+      organization: this.registrationForm.value.organization || "",
+    };
+
+    this.authService.registerCA(caRegistration).subscribe({
+      next: (response) => {
+        alert(response.message); 
+        this.registrationForm.reset(); // Resetuj formu nakon uspešne registracije
+      },
+      error: (err) => {
+        console.error('CA Registration error:', err);
+        
+        let errorMessage = 'CA Registration failed';
+        if (err.error) {
+          if (typeof err.error === 'string') {
+            errorMessage = err.error;
+          } else if (err.error.message) {
+            errorMessage = err.error.message;
+          }
+        }
+        
+        alert(errorMessage);
+      }
+    });
+  }
+
   onPasswordChange(): void {
     const password = this.registrationForm.get('password')?.value || '';
     this.passwordStrength = this.calculatePasswordStrength(password);
@@ -106,6 +192,10 @@ export class RegistrationComponent {
     } else {
       return { percentage: 100, label: 'Strong', class: 'strong' };
     }
+  }
+
+  isAdmin(): boolean {
+    return this.currentUser?.role === 'ADMIN'
   }
   
 }

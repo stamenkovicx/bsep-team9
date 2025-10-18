@@ -54,4 +54,31 @@ public class EmailVerificationService {
     public boolean isTokenExpired(LocalDateTime expiryDate) {
         return expiryDate.isBefore(LocalDateTime.now());
     }
+
+    public void sendCAPasswordEmail(User user, String temporaryPassword) throws MessagingException {
+        MimeMessage mimeMessage = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
+
+        String htmlContent = "<h3>Hello " + user.getName() + " " + user.getSurname() + ",</h3>" +
+                "<p>Your Certificate Authority (CA) account has been created successfully.</p>" +
+                "<br>" +
+                "<p><strong>Login Credentials:</strong></p>" +
+                "<ul>" +
+                "<li><strong>Email:</strong> " + user.getEmail() + "</li>" +
+                "<li><strong>Temporary Password:</strong> " + temporaryPassword + "</li>" +
+                "</ul>" +
+                "<br>" +
+                "<p><strong>Important:</strong> You must change your password immediately after first login.</p>" +
+                "<p>Login URL: <a href='http://localhost:4200/login'>http://localhost:4200/login</a></p>" +
+                "<br>" +
+                "<p>If you did not request this account, please contact the system administrator immediately.</p>" +
+                "<br>" +
+                "<p>Best regards,<br>PKI System Team</p>";
+
+        helper.setTo(user.getEmail());
+        helper.setSubject("Your CA Account Credentials - PKI System");
+        helper.setText(htmlContent, true);
+
+        mailSender.send(mimeMessage);
+    }
 }

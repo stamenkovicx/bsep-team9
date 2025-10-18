@@ -108,4 +108,11 @@ export class AuthService {
       dto
     );
   }
+
+  registerCA(registration: any): Observable<{message: string}> {
+  return this.http.post<{message: string}>(
+      environment.apiHost + 'auth/register-ca', 
+      registration
+  );
+}
 }

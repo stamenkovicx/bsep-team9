@@ -45,4 +45,7 @@ public class User {
     @Column(name = "two_factor_secret")
     private String twoFactorSecret;
 
+    // kada admin registruje ca korisnika, pri prvoj prijavi mora da promijeni lozinku
+    @Column(name = "password_change_required")
+    private Boolean passwordChangeRequired = false;
 }
