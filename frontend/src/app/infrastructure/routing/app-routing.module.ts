@@ -6,11 +6,15 @@ import { AuthGuard } from '../auth/auth.guard';
 import { RegistrationComponent } from '../auth/registration/registration.component';
 import { CreateCertificateComponent } from 'src/app/feature-modules/certificates/create-certificate/create-certificate.component';
 import { ChangePasswordRequiredComponent } from '../auth/change-password-required/change-password-required.component';
+import { ForgotPasswordComponent } from '../auth/forgot-password/forgot-password.component';
+import { ResetPasswordComponent } from '../auth/reset-password/reset-password.component';
 
 const routes: Routes = [
   {path: 'home', component: HomeComponent},
   {path: 'login', component: LoginComponent},
   {path: 'register', component: RegistrationComponent},
+  { path: 'forgot-password', component: ForgotPasswordComponent },
+  { path: 'reset-password', component: ResetPasswordComponent },
   {
     path: 'certificates',
     canActivate: [AuthGuard],

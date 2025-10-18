@@ -375,4 +375,68 @@ public class AuthController {
             return ResponseEntity.status(500).body(Map.of("message", "Error changing password: " + e.getMessage()));
         }
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordDTO request) {
+
+        try {
+            Optional<User> userOpt = userService.findByEmail(request.getEmail());
+
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "message", "If an account with that email exists, a password reset link has been sent."
+                ));
+            }
+            User user = userOpt.get();
+            // Proveri da li je nalog verifikovan
+            if (!user.getEnabled()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Please verify your email before requesting a password reset"
+                ));
+            }
+
+            // Inicijalizuj password reset (čuva token u bazi)
+            userService.initiatePasswordReset(request.getEmail());
+
+            user = userService.findByEmail(request.getEmail()).orElseThrow();
+            emailVerificationService.sendPasswordResetEmail(user, user.getPasswordResetToken());
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "If an account with that email exists, a password reset link has been sent."
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error processing password reset request"
+            ));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordDTO request) {
+        try {
+            // Proveri da li se lozinke poklapaju
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Passwords do not match"
+                ));
+            }
+            // Validiraj jacinu lozinke
+            if (!passwordValidator.isValid(request.getNewPassword())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", passwordValidator.getValidationMessage()
+                ));
+            }
+            // Resetuj lozinku
+            userService.resetPassword(request.getToken(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of(
+                    "message", "Password has been reset successfully. You can now log in with your new password."
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "message", e.getMessage()
+            ));
+        }
+    }
 }

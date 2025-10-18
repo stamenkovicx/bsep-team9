@@ -105,3 +105,17 @@
     color: #303f9f;
     text-decoration: underline;
   }
+  .forgot-password-link {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 14px;
+  }
+  
+  .forgot-password-link a {
+    color: #667eea;
+    text-decoration: none;
+  }
+  
+  .forgot-password-link a:hover {
+    text-decoration: underline;
+  }

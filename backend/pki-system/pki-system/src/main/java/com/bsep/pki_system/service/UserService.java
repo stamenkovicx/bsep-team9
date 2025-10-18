@@ -5,8 +5,10 @@ import com.bsep.pki_system.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Random;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -99,6 +101,47 @@ public class UserService {
 
     public void changePassword(User user, String newPassword) {
         user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    public Optional<User> findByPasswordResetToken(String token) {
+        return userRepository.findByPasswordResetToken(token);
+    }
+
+    public void initiatePasswordReset(String email) throws Exception {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new Exception("User not found"));
+
+        // Generisi token
+        String token = UUID.randomUUID().toString();
+
+        user.setPasswordResetToken(token);
+        user.setPasswordResetTokenExpiryDate(LocalDateTime.now().plusHours(1));
+
+        User savedUser = userRepository.save(user);
+        System.out.println("Saved token: " + savedUser.getPasswordResetToken());
+        System.out.println("Token expiry: " + savedUser.getPasswordResetTokenExpiryDate());
+    }
+
+    public void resetPassword(String token, String newPassword) throws Exception {
+        Optional<User> userOpt = userRepository.findByPasswordResetToken(token);
+
+        if (userOpt.isEmpty()) {
+            throw new Exception("Invalid reset token");
+        }
+
+        User user = userOpt.get();
+
+        // Proveri da li je token istekao
+        if (user.getPasswordResetTokenExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new Exception("Reset token has expired");
+        }
+        // Promeni lozinku
+        user.setPassword(passwordEncoder.encode(newPassword));
+        // Obriši token (jednokratna upotreba)
+        user.setPasswordResetToken(null);
+        user.setPasswordResetTokenExpiryDate(null);
+
         userRepository.save(user);
     }
 }

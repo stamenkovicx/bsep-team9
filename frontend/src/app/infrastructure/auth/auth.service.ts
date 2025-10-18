@@ -122,4 +122,18 @@ export class AuthService {
       { headers: { Authorization: `Bearer ${tempToken}` } }
     );
   }
+
+  forgotPassword(email: string): Observable<{message: string}> {
+    return this.http.post<{message: string}>(
+      environment.apiHost + 'auth/forgot-password',
+      { email }
+    );
+  }
+  
+  resetPassword(token: string, newPassword: string, confirmPassword: string): Observable<{message: string}> {
+    return this.http.post<{message: string}>(
+      environment.apiHost + 'auth/reset-password',
+      { token, newPassword, confirmPassword }
+    );
+  }
 }
