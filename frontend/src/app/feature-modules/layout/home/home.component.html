@@ -33,7 +33,7 @@
 
     <div class="quick-actions">
       <!-- ADMIN / CA -->
-      <div *ngIf="isAdmin() || isCA()" class="action-card" routerLink="/certificates">
+      <div *ngIf="isAdmin() || isCA()" class="action-card" routerLink="/certificates/view">
         <mat-icon class="action-icon">list_alt</mat-icon>
         <h3>{{ isAdmin() ? 'Cert List' : 'Chain View' }}</h3>
         <p>{{ isAdmin() ? 'View all certificates' : 'View certificate chain' }}</p>
@@ -116,7 +116,7 @@
             </button>
 
             <!-- Download CRL -->
-            <button *ngIf="cert.type === 'INTERMEDIATE'" 
+            <button *ngIf="canRevoke(cert)"
                     mat-icon-button
                     (click)="downloadCRL(cert)"
                     matTooltip="Download CRL">

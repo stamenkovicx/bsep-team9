@@ -118,9 +118,26 @@ export class HomeComponent implements OnInit {
   }
 
   canRevoke(certificate: Certificate): boolean {
-    return certificate.type === 'INTERMEDIATE' && 
-           certificate.status === 'VALID' &&
-           (this.isAdmin() || this.isCA());
+    // 1. Ne možeš povući sertifikat koji nije validan (već je povučen/istekao)
+    if (certificate.status !== 'VALID') {
+      return false;
+    }
+    // 2. Admin može da povuče SVE (i Root i sve ostale)
+    if (this.isAdmin()) {
+      return true;
+    }
+    // 3. Ako nismo Admin, NIKO ne može da povuče ROOT sertifikat
+    if (certificate.type === 'ROOT') {
+      return false; 
+    }
+    // 4. Ako je sertifikat INTERMEDIATE ili END_ENTITY:
+    //    Dozvoljavamo CA i Basic korisnicima da vide dugme.
+    if (this.isCA() || this.isBasic()) {
+      return true;
+    }
+  
+    // U svim ostalim slučajevima, sakrij dugme
+    return false;
   }
 
   openRevokeDialog(certificate: Certificate): void {

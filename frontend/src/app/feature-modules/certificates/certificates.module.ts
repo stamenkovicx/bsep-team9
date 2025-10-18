@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
 
 // Angular Material imports
 import { MatCardModule } from '@angular/material/card';
@@ -13,18 +14,24 @@ import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatDialogModule } from '@angular/material/dialog';
 
 import { CertificatesRoutingModule } from './certificates-routing.module';
 import { CreateCertificateComponent } from './create-certificate/create-certificate.component';
+import { ChainViewComponent } from './chain-view/chain-view/chain-view.component';
+import { MatTreeModule } from '@angular/material/tree';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @NgModule({
   declarations: [
     CreateCertificateComponent,
+    ChainViewComponent,
   ],
   imports: [
     CommonModule,
     ReactiveFormsModule,  
     CertificatesRoutingModule,
+    HttpClientModule,
     
     // Angular Material modules
     MatCardModule,
@@ -36,7 +43,10 @@ import { CreateCertificateComponent } from './create-certificate/create-certific
     MatDatepickerModule,
     MatNativeDateModule,
     MatButtonModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatTreeModule,
+    MatDialogModule,
+    MatTooltipModule
   ]
 })
 export class CertificatesModule { }

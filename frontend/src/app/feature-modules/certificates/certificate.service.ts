@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 import { CreateCertificateDTO } from './models/create-certificate.dto';
 import { Certificate } from './models/certificate.interface';
 
@@ -34,6 +34,41 @@ export class CertificateService {
 
   getMyChain(): Observable<Certificate[]> {
     return this.http.get<Certificate[]>(`${this.apiUrl}/my-chain`);
+  }
+  getMyChainAsTree(): Observable<Certificate[]> {
+    return this.http.get<Certificate[]>(`${this.apiUrl}/my-chain`).pipe(
+      map(flatList => {
+        // Mapa za brzi pronalazak roditelja
+        const map = new Map<number, Certificate>();
+        
+        // Finalna lista koja sadrži samo Root sertifikate (vrh hijerarhije)
+        const tree: Certificate[] = []; 
+
+        // 1. korak: Inicijalizuj mapu i dodaj 'children' polje svakom objektu
+        for (const cert of flatList) {
+          cert.children = []; // Inicijalizujemo prazno 'children' polje
+          map.set(cert.id, cert);
+        }
+
+        // 2. korak: Prođi ponovo i poveži decu sa roditeljima
+        for (const cert of flatList) {
+          if (cert.issuerCertificate != null) {
+            // Ovo je "dete". Nađi mu roditelja u mapi.
+            const parent = map.get(cert.issuerCertificate.id);
+            if (parent && parent.children) {
+              // Dodaj ga u 'children' niz njegovog roditelja
+              parent.children.push(cert);
+            }
+          } else {
+            // Ovo je Root sertifikat (nema roditelja), dodaj ga u glavnu listu
+            tree.push(cert);
+          }
+        }
+        
+        // Vrati samo listu Root sertifikata (koji sada u sebi sadrže svu decu)
+        return tree;
+      })
+    );
   }
 
   downloadCertificate(id: number): Observable<Blob> {
