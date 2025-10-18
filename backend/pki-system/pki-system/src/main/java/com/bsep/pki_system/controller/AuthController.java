@@ -145,9 +145,11 @@ public class AuthController {
 
         // Provjera da li korisnik mora da promijeni lozinku
         if (user.getPasswordChangeRequired() != null && user.getPasswordChangeRequired()) {
+            String temporaryToken = jwtService.generateTemporaryToken(user);
             return ResponseEntity.status(401).body(Map.of(
                     "message", "Password change required",
-                    "passwordChangeRequired", true
+                    "passwordChangeRequired", true,
+                    "token", temporaryToken
             ));
         }
 
@@ -325,6 +327,52 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("message", "Error creating CA user: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/change-password-required")
+    public ResponseEntity<?> changePasswordRequired(
+            @Valid @RequestBody ChangePasswordRequiredDTO request,
+            @RequestHeader("Authorization") String authorizationHeader) {
+
+        System.out.println("Authorization header: " + authorizationHeader);
+
+        try {
+            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("message", "No token provided"));
+            }
+
+            String tempToken = authorizationHeader.substring(7); // ukloni "Bearer "
+
+            String email = jwtService.getEmailFromTemporaryToken(tempToken);
+
+            if (email == null) {
+                return ResponseEntity.status(401).body(Map.of("message", "Invalid or expired token"));
+            }
+
+            User user = userService.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (user.getPasswordChangeRequired() == null || !user.getPasswordChangeRequired()) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Password change not required"));
+            }
+
+            if (!passwordValidator.isValid(request.getNewPassword())) {
+                return ResponseEntity.badRequest().body(Map.of("message", passwordValidator.getValidationMessage()));
+            }
+
+            if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Passwords do not match"));
+            }
+
+            userService.changePassword(user, request.getNewPassword());
+            user.setPasswordChangeRequired(false);
+            userService.updateUser(user);
+
+            return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Error changing password: " + e.getMessage()));
         }
     }
 }

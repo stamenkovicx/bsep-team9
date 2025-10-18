@@ -49,31 +49,54 @@ export class LoginComponent {
 
 
       this.authService.login(loginPayload).subscribe({
-        next: () => {
+        next: (response) => {
           console.log('✅ Login success');
-          this.router.navigate(['/home']);
+          // PROVJERA ZA OBAVEZNU PROMJENU LOZINKE
+          if (response.passwordChangeRequired) {
+            console.log('🔐 Password change required');
+            this.router.navigate(['/change-password-required']);
+          } else {
+            this.router.navigate(['/home']);
+          }
         },
         error: (err: HttpErrorResponse) => {
-          if (err.status === 401 && (err.error as any).twoFactorRequired) {
-            this.savedRecaptchaToken = recaptchaToken;
-            this.twoFactorRequired = true; 
+          if (err.status === 401) {
+            const errorData = err.error as any;
             
-            this.twoFactorCodeControl.setValidators([
-                Validators.required, 
-                Validators.minLength(6), 
-                Validators.maxLength(6),
-                Validators.pattern(/^\d{6}$/) // Samo 6 cifara
-              ]);
-            this.twoFactorCodeControl.updateValueAndValidity();
+            // PROVJERA ZA OBAVEZNU PROMJENU LOZINKE U ERRORU
+            if (errorData.passwordChangeRequired) {
+              console.log('🔐 Password change required (from error)');
+              
+              // Sačuvaj privremeni token
+              if (errorData.token) {
+                localStorage.setItem('tempToken', errorData.token);
+              }
 
-            alert("2FA required. Please enter the code from your authenticator app.");
-            
-          } else {
-            const errorMessage = (err.error as any).message || err.error;
-            alert(errorMessage);
+              this.router.navigate(['/change-password-required']);
+              return;
+            }
 
-            if (this.twoFactorRequired) {
-                this.twoFactorCodeControl.reset();
+            if ((err.error as any).twoFactorRequired) {
+              this.savedRecaptchaToken = recaptchaToken;
+              this.twoFactorRequired = true; 
+              
+              this.twoFactorCodeControl.setValidators([
+                  Validators.required, 
+                  Validators.minLength(6), 
+                  Validators.maxLength(6),
+                  Validators.pattern(/^\d{6}$/) // Samo 6 cifara
+                ]);
+              this.twoFactorCodeControl.updateValueAndValidity();
+
+              alert("2FA required. Please enter the code from your authenticator app.");
+              
+            } else {
+              const errorMessage = (err.error as any).message || err.error;
+              alert(errorMessage);
+
+              if (this.twoFactorRequired) {
+                  this.twoFactorCodeControl.reset();
+              }
             }
           }
         }

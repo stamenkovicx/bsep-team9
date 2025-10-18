@@ -25,25 +25,24 @@ export class AuthService {
     private router: Router) { }
 
     login(loginPayload: LoginPayload): Observable<LoginResponse> {
-      return this.http
-        // Šaljemo LoginPayload koji odgovara LoginWith2FADTO na backendu
-        .post<LoginResponse>(environment.apiHost + 'auth/login', loginPayload) 
-        .pipe(
-          tap((response) => {
-            // 2. Cuvamo token iz odgovora
-            this.tokenStorage.saveAccessToken(response.token);
-            
-            // 3. Postavljamo korisnika direktno iz odgovora, nema potrebe za dekodiranjem
-            const user: User = {
-              id: response.userId,
-              email: response.email,
-              role: response.userRole,
-              is2FAEnabled: response.is2faEnabled
-            };
-            this.user$.next(user);
-          })
-        );
-    }
+    return this.http
+      .post<LoginResponse>(environment.apiHost + 'auth/login', loginPayload) 
+      .pipe(
+        tap((response) => {
+          // UVIJEK ČUVAJ TOKEN, čak i kada je potrebna promena lozinke
+          this.tokenStorage.saveAccessToken(response.token);
+          
+          const user: User = {
+            id: response.userId,
+            email: response.email,
+            role: response.userRole,
+            is2FAEnabled: response.is2faEnabled,
+            passwordChangeRequired: response.passwordChangeRequired || false
+          };
+          this.user$.next(user);
+        })
+      );
+  }
 
 
     register(registration: Registration): Observable<{message: string}> {
@@ -110,9 +109,17 @@ export class AuthService {
   }
 
   registerCA(registration: any): Observable<{message: string}> {
-  return this.http.post<{message: string}>(
-      environment.apiHost + 'auth/register-ca', 
-      registration
-  );
-}
+    return this.http.post<{message: string}>(
+        environment.apiHost + 'auth/register-ca', 
+        registration
+    );
+  }
+
+  changePasswordRequired(request: { newPassword: string, confirmPassword: string }, tempToken: string) {
+    return this.http.post<{message: string}>(
+      environment.apiHost + 'auth/change-password-required',
+      request,
+      { headers: { Authorization: `Bearer ${tempToken}` } }
+    );
+  }
 }

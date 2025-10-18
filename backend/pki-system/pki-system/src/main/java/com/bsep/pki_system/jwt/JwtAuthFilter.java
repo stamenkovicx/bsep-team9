@@ -39,6 +39,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
+        // 1. Provera da li je token privremen
+        try {
+            Claims claims = jwtService.getClaims(token);
+            Boolean temporary = claims.get("temporary", Boolean.class);
+            if (temporary != null && temporary) {
+                // Preskoči standardnu autentifikaciju
+                filterChain.doFilter(request, response);
+                return;
+            }
+        } catch (Exception e) {
+            // Ako token nije validan, samo nastavi dalje, filter će ga ignorisati
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         if (jwtService.validateToken(token)) {
             Claims claims = jwtService.getClaims(token);
             String email = claims.getSubject();

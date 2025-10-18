@@ -58,4 +58,35 @@ public class JwtService {
                 .parseClaimsJws(token)
                 .getBody();
     }
+
+    public String generateTemporaryToken(User user) {
+        // kraći rok važenja, npr. 10 minuta
+        long temporaryExpirationMs = 10 * 60 * 1000; // 10 minuta
+
+        return Jwts.builder()
+                .setSubject(user.getEmail())
+                .claim("userId", user.getId())
+                .claim("role", user.getRole().name()) // možeš staviti i "TEMPORARY"
+                .claim("temporary", true) // oznaka da je token privremen
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + temporaryExpirationMs))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String getEmailFromTemporaryToken(String token) {
+        try {
+            Claims claims = getClaims(token);
+
+            // Provera da li je token zaista privremen
+            Boolean temporary = claims.get("temporary", Boolean.class);
+            if (temporary == null || !temporary) {
+                return null; // nije privremeni token
+            }
+
+            return claims.getSubject(); // subject je email
+        } catch (JwtException | IllegalArgumentException e) {
+            return null; // token ne važi ili je neispravan
+        }
+    }
 }

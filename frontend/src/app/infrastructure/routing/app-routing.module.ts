@@ -5,6 +5,7 @@ import { LoginComponent } from '../auth/login/login.component';
 import { AuthGuard } from '../auth/auth.guard';
 import { RegistrationComponent } from '../auth/registration/registration.component';
 import { CreateCertificateComponent } from 'src/app/feature-modules/certificates/create-certificate/create-certificate.component';
+import { ChangePasswordRequiredComponent } from '../auth/change-password-required/change-password-required.component';
 
 const routes: Routes = [
   {path: 'home', component: HomeComponent},
@@ -21,7 +22,11 @@ const routes: Routes = [
     canActivate: [AuthGuard],
     loadChildren: () =>
       import('src/app/feature-modules/certificate-templates/certificate-templates.module').then(m => m.TemplatesModule)
-  },      
+  },  
+  {
+    path: 'change-password-required',
+    component: ChangePasswordRequiredComponent
+  },    
  // 2. Podrazumevana ruta: Preusmerava praznu putanju na glavnu stranicu
   {path: '', redirectTo: '/home', pathMatch: 'full'},
   // 3. Džoker ruta (opciono): Preusmerava sve nepoznate URL-ove na početnu stranicu
