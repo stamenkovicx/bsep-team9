@@ -1,137 +1,259 @@
 /* Glavni kontejner sa suptilnim gradijentom */
 .registration-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 40px 20px; /* Dodajemo padding za manje ekrane */
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: 100vh;
+}
+
+/* Stil za karticu sa animacijom */
+.registration-card {
+  width: 100%;
+  max-width: 500px;
+  padding: 32px 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease-in-out;
+}
+
+.registration-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Header kartice */
+mat-card-header {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 24px;
+}
+
+::ng-deep .mat-card-header-text {
+  margin: 0 !important;
+}
+
+::ng-deep mat-icon[mat-card-avatar] {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: #3f51b5;
+}
+
+mat-card-title {
+  font-size: 28px;
+  font-weight: 500;
+}
+
+mat-card-subtitle {
+  font-size: 16px;
+  color: #666;
+}
+
+/* Forma unutar kartice */
+.registration-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Red za ime i prezime */
+.name-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.name-row mat-form-field {
+  flex: 1;
+}
+
+mat-form-field {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+mat-icon[matSuffix] {
+  color: #aaa;
+}
+
+/* Indikator jačine lozinke */
+.password-strength {
+  margin-top: -12px;
+  margin-bottom: 16px;
+}
+
+.strength-bar {
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.strength-fill {
+  height: 100%;
+  transition: width 0.3s ease-in-out;
+}
+
+.strength-fill.weak { background-color: #f44336; }
+.strength-fill.fair { background-color: #ff9800; }
+.strength-fill.good { background-color: #2196f3; }
+.strength-fill.strong { background-color: #4caf50; }
+
+.strength-text {
+  font-size: 13px;
+  margin: 0;
+  font-weight: 500;
+  text-align: right;
+}
+
+.strength-text.weak { color: #f44336; }
+.strength-text.fair { color: #ff9800; }
+.strength-text.good { color: #2196f3; }
+.strength-text.strong { color: #4caf50; }
+
+/* Password Match Indicator */
+.password-match-indicator {
+  margin-top: -8px;
+  margin-bottom: 16px;
+  animation: slideDown 0.3s ease;
+}
+
+.match-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 12px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.match-message.match {
+  color: #155724;
+  background-color: #d4edda;
+  border-left: 3px solid #28a745;
+}
+
+.match-message.no-match {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-left: 3px solid #dc3545;
+}
+
+.match-message mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.match-message.match mat-icon {
+  color: #28a745;
+}
+
+.match-message.no-match mat-icon {
+  color: #dc3545;
+}
+
+/* Dugme za registraciju */
+.register-button {
+  width: 100%;
+  padding: 22px 0;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 16px;
+  transition: all 0.3s ease;
+}
+
+.register-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Link za prijavu */
+.signin-link {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #555;
+}
+
+.signin-link a {
+  color: #3f51b5;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.signin-link a:hover {
+  text-decoration: underline;
+}
+
+/* Animacije */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Focus state za input polja */
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+  color: #3f51b5 !important;
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-label {
+  color: #3f51b5 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .registration-container {
+    padding: 20px 16px;
   }
   
-  /* Stil za karticu sa animacijom */
   .registration-card {
-    width: 100%;
-    max-width: 500px;
-    padding: 32px 40px;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    padding: 24px 20px;
   }
-  
-  /* Header kartice */
-  mat-card-header {
-    padding-bottom: 24px;
-    border-bottom: 1px solid #eee;
-    margin-bottom: 24px;
-  }
-  
-  ::ng-deep .mat-card-header-text {
-    margin: 0 !important;
-  }
-  
-  ::ng-deep mat-icon[mat-card-avatar] {
-    font-size: 48px;
-    width: 48px;
-    height: 48px;
-    color: #3f51b5;
+
+  .name-row {
+    flex-direction: column;
+    gap: 0;
   }
   
   mat-card-title {
-    font-size: 28px;
-    font-weight: 500;
+    font-size: 24px;
   }
   
   mat-card-subtitle {
-    font-size: 16px;
-    color: #666;
-  }
-  
-  /* Forma unutar kartice */
-  .registration-form {
-    display: flex;
-    flex-direction: column;
-  }
-  
-  /* Red za ime i prezime */
-  .name-row {
-    display: flex;
-    gap: 16px;
-    width: 100%;
-  }
-  
-  .name-row mat-form-field {
-    flex: 1; /* Polja dele prostor jednako */
-  }
-  
-  mat-form-field {
-    width: 100%;
-    margin-bottom: 4px;
-  }
-  
-  mat-icon[matSuffix] {
-    color: #aaa;
-  }
-  
-  /* Indikator jačine lozinke */
-  .password-strength {
-    margin-top: -12px;
-    margin-bottom: 16px;
-  }
-  
-  .strength-bar {
-    height: 8px;
-    background-color: #e0e0e0;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 6px;
-  }
-  
-  .strength-fill {
-    height: 100%;
-    transition: width 0.3s ease-in-out;
-  }
-  
-  .strength-fill.weak { background-color: #f44336; }
-  .strength-fill.fair { background-color: #ff9800; }
-  .strength-fill.good { background-color: #2196f3; }
-  .strength-fill.strong { background-color: #4caf50; }
-  
-  .strength-text {
-    font-size: 13px;
-    margin: 0;
-    font-weight: 500;
-    text-align: right;
-  }
-  
-  .strength-text.weak { color: #f44336; }
-  .strength-text.fair { color: #ff9800; }
-  .strength-text.good { color: #2196f3; }
-  .strength-text.strong { color: #4caf50; }
-  
-  /* Dugme za registraciju */
-  .register-button {
-    width: 100%;
-    padding: 22px 0;
-    font-size: 16px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 16px;
-  }
-  
-  /* Link za prijavu */
-  .signin-link {
-    text-align: center;
-    margin-top: 20px;
     font-size: 14px;
-    color: #555;
+  }
+}
+
+@media (max-width: 480px) {
+  .registration-card {
+    padding: 20px 16px;
   }
   
-  .signin-link a {
-    color: #3f51b5;
-    text-decoration: none;
-    font-weight: 600;
+  ::ng-deep mat-icon[mat-card-avatar] {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
   }
   
-  .signin-link a:hover {
-    text-decoration: underline;
+  mat-card-title {
+    font-size: 22px;
   }
+
+  .register-button {
+    padding: 18px 0;
+    font-size: 14px;
+  }
+}

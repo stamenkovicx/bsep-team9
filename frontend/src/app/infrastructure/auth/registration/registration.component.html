@@ -38,6 +38,7 @@
             <input matInput formControlName="password" type="password" (input)="onPasswordChange()">
             <mat-icon matSuffix>vpn_key</mat-icon>
           </mat-form-field>
+
           
           <div class="password-strength" *ngIf="registrationForm.get('password')?.value">
             <div class="strength-bar">
@@ -51,6 +52,13 @@
             <input matInput formControlName="confirmPassword" type="password">
             <mat-icon matSuffix>vpn_key</mat-icon>
           </mat-form-field>
+
+          <div class="password-match-indicator" *ngIf="!isAdmin() && registrationForm.get('confirmPassword')?.value">
+            <div class="match-message" [ngClass]="{'match': passwordsMatch(), 'no-match': !passwordsMatch()}">
+              <mat-icon>{{ passwordsMatch() ? 'check_circle' : 'cancel' }}</mat-icon>
+              <span>{{ passwordsMatch() ? 'Passwords match' : 'Passwords do not match' }}</span>
+            </div>
+          </div>
           
           <button class="register-button" color="primary" type="submit" mat-raised-button [disabled]="!registrationForm.valid">
             Register

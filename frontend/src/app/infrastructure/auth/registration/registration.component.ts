@@ -197,5 +197,15 @@ export class RegistrationComponent {
   isAdmin(): boolean {
     return this.currentUser?.role === 'ADMIN'
   }
+  passwordsMatch(): boolean {
+    const password = this.registrationForm.get('password')?.value || '';
+    const confirmPassword = this.registrationForm.get('confirmPassword')?.value || '';
+    
+    if (!password || !confirmPassword) {
+      return false;
+    }
+    
+    return password === confirmPassword;
+  }
   
 }

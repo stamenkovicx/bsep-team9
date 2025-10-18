@@ -48,4 +48,7 @@ public class User {
     // kada admin registruje ca korisnika, pri prvoj prijavi mora da promijeni lozinku
     @Column(name = "password_change_required")
     private Boolean passwordChangeRequired = false;
+
+    private String passwordResetToken;
+    private LocalDateTime passwordResetTokenExpiryDate;
 }
