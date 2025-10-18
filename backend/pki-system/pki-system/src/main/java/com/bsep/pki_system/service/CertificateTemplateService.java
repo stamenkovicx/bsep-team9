@@ -122,6 +122,54 @@ public class CertificateTemplateService {
         templateRepository.delete(template);
     }
 
+    public CertificateTemplate updateTemplate(Long templateId, CreateTemplateDTO templateDTO, User updatedBy) {
+        // Pronađi postojeći šablon
+        CertificateTemplate existingTemplate = templateRepository.findById(templateId)
+                .orElseThrow(() -> new IllegalArgumentException("Template not found with ID: " + templateId));
+
+        // SAMO CA korisnik može da ažurira šablone
+        if (updatedBy.getRole() != UserRole.CA) {
+            throw new IllegalArgumentException("Only CA users can update templates");
+        }
+
+        // SAMO kreator šablona može da ga ažurira
+        if (!existingTemplate.getCreatedBy().getId().equals(updatedBy.getId())) {
+            throw new IllegalArgumentException("Not authorized to update this template");
+        }
+
+        // Provera da li šablon sa istim imenom već postoji (isključujući trenutni)
+        if (templateRepository.existsByNameAndIdNot(templateDTO.getName(), templateId)) {
+            throw new IllegalArgumentException("Template with name '" + templateDTO.getName() + "' already exists");
+        }
+
+        // Pronalaženje CA issuer-a
+        Certificate caIssuer = certificateService.findById(templateDTO.getCaIssuerId())
+                .orElseThrow(() -> new IllegalArgumentException("CA issuer not found with ID: " + templateDTO.getCaIssuerId()));
+
+        // Provera da li je issuer zaista CA
+        if (!caIssuer.getIsCA()) {
+            throw new IllegalArgumentException("Selected certificate is not a CA and cannot be used as template issuer");
+        }
+
+        // Provera da li CA issuer pripada istoj organizaciji kao korisnik
+        if (!caIssuer.getOwner().getOrganization().equals(updatedBy.getOrganization())) {
+            throw new IllegalArgumentException("CA issuer does not belong to your organization");
+        }
+
+        // Ažuriranje šablona
+        existingTemplate.setName(templateDTO.getName());
+        existingTemplate.setDescription(templateDTO.getDescription());
+        existingTemplate.setCaIssuer(caIssuer);
+        existingTemplate.setCommonNameRegex(templateDTO.getCommonNameRegex());
+        existingTemplate.setSansRegex(templateDTO.getSansRegex());
+        existingTemplate.setMaxValidityDays(templateDTO.getMaxValidityDays());
+        existingTemplate.setKeyUsage(templateDTO.getKeyUsage());
+        existingTemplate.setExtendedKeyUsage(templateDTO.getExtendedKeyUsage());
+        existingTemplate.setBasicConstraints(templateDTO.getBasicConstraints());
+
+        return templateRepository.save(existingTemplate);
+    }
+
     private TemplateResponseDTO convertToDTO(CertificateTemplate template) {
         TemplateResponseDTO dto = new TemplateResponseDTO();
         dto.setId(template.getId());

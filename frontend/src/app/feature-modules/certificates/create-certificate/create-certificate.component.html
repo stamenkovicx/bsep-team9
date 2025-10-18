@@ -1,5 +1,11 @@
 <div class="certificate-container">
   <mat-card class="certificate-card">
+    <button mat-stroked-button color="accent" 
+          routerLink="/templates" class="template-header-button">
+      <mat-icon>description</mat-icon>
+      USE TEMPLATE
+    </button>
+    
     <mat-card-header>
       <mat-icon mat-card-avatar>security</mat-icon>
       <mat-card-title>Create Root Certificate</mat-card-title>
@@ -71,6 +77,9 @@
           <mat-form-field appearance="outline">
             <mat-label>Common Name *</mat-label>
             <input matInput formControlName="subjectCommonName" placeholder="My Root CA">
+            <mat-error *ngIf="certificateForm.get('subjectCommonName')?.hasError('patternMismatch')">
+              Common Name doesn't match template pattern
+            </mat-error>
             <mat-error *ngIf="certificateForm.get('subjectCommonName')?.hasError('required')">
               Common Name is required
             </mat-error>

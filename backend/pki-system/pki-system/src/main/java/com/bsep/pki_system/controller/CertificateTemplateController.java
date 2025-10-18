@@ -171,6 +171,32 @@ public class CertificateTemplateController {
         }
     }
 
+    // SAMO CA korisnik može da ažurira šablon
+    @PreAuthorize("hasRole('CA')")
+    @PutMapping("/{templateId}")
+    public ResponseEntity<?> updateTemplate(
+            @PathVariable Long templateId,
+            @Valid @RequestBody CreateTemplateDTO templateDTO,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            // Pozovi update metodu iz servisa
+            var updatedTemplate = templateService.updateTemplate(templateId, templateDTO, user);
+            var responseDTO = convertToResponseDTO(updatedTemplate);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Template updated successfully",
+                    "template", responseDTO
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("message", "Error updating template: " + e.getMessage()));
+        }
+    }
+
     // Metoda za prefilled data
     private Map<String, Object> getPrefilledCertificateData(CertificateTemplate template) {
         Map<String, Object> prefilledData = new HashMap<>();
