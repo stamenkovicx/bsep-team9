@@ -75,6 +75,7 @@ public class CertificateGeneratorService {
         AuthorityKeyIdentifier aki = extensionUtils.createAuthorityKeyIdentifier(keyPair.getPublic());
 
         // 5. Dodavanje ekstenzija
+        //omogući izdavanje proizvoljnog broja intermediate sertifikata u jednom lancu -1
         addBasicConstraints(certBuilder, true, -1); // CA:TRUE, bez pathlen ograničenja
         addKeyUsage(certBuilder);
         certBuilder.addExtension(Extension.subjectKeyIdentifier, false, ski);
@@ -191,7 +192,7 @@ public class CertificateGeneratorService {
         );
 
         // 6. Dodavanje ekstenzija
-        addBasicConstraints(certBuilder, true, -1);
+        addBasicConstraints(certBuilder, true, -1);//omogucen prozivoljan lanac sertifikata
         addKeyUsage(certBuilder);
 
         // DODATO: Postavljanje SKI i AKI ekstenzija

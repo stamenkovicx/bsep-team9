@@ -161,9 +161,6 @@ public class CertificateService {
         if (newCertRequest.getValidFrom().before(issuer.getValidFrom()) || newCertRequest.getValidTo().after(issuer.getValidTo())) {
             throw new IllegalArgumentException("The new certificate's validity period must be within the issuer's validity period.");
         }
-
-        // TODO: Provera Path Length Constraint-a. Ovo je naprednija provera.
-        // Ako issuer ima pathlen:0, on ne može da izda novi intermediate sertifikat.
     }
 
 
@@ -174,9 +171,16 @@ public class CertificateService {
             // Admin može da koristi bilo koji validan CA sertifikat iz sistema
             return certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
         }
+        // CA korisnik može da koristi samo validne CA sertifikate iz svoje organizacije
         if (user.getRole() == UserRole.CA) {
-            // CA korisnik može da koristi samo validne CA sertifikate iz svoje organizacije
-            return certificateRepository.findValidIssuersByOrganization(CertificateStatus.VALID, now, user.getOrganization());
+            // Prvo dobavljamo SVE validne CA sertifikate
+            List<Certificate> allValidIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
+
+            // Zatim ih filtriramo koristeći ISTU logiku kao za /my-chain
+            // Proveravamo da li sertifikat pripada lancu organizacije CA korisnika
+            return allValidIssuers.stream()
+                    .filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()))
+                    .collect(Collectors.toList());
         }
         // Ako uloga nije ni ADMIN ni CA, vrati praznu listu
         return Collections.emptyList();
