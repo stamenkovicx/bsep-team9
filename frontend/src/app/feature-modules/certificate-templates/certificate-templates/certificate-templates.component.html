@@ -47,10 +47,13 @@
             <mat-form-field appearance="outline">
               <mat-label>CA Issuer *</mat-label>
               <mat-select formControlName="caIssuerId">
-                <mat-option *ngFor="let issuer of caIssuers" [value]="issuer.id">
-                  {{ issuer.name }}
+                <mat-option *ngIf="caIssuers.length === 0" disabled>
+                    No CA issuers available
                 </mat-option>
-              </mat-select>
+                <mat-option *ngFor="let issuer of caIssuers" [value]="issuer.id">
+                    {{ issuer.name }}
+                </mat-option>
+            </mat-select>
               <mat-error *ngIf="templateForm.get('caIssuerId')?.hasError('required')">
                 CA issuer is required
               </mat-error>

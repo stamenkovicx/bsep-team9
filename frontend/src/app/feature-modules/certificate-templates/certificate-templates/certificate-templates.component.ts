@@ -32,6 +32,19 @@ export class CertificateTemplatesComponent implements OnInit {
   ngOnInit(): void {
     this.loadTemplates();
     this.loadCaIssuers();
+
+    this.templateForm.get('keyUsage')?.valueChanges.subscribe(value => {
+        const validUsages = ['digitalsignature', 'nonrepudiation', 'contentcommitment', 
+                            'keyencipherment', 'dataencipherment', 'keyagreement', 
+                            'keycertsign', 'crlsign', 'encipheronly', 'decipheronly'];
+        
+        const inputUsages = value.toLowerCase().split(',').map((u: string) => u.trim());
+        const invalidUsages = inputUsages.filter((u: string) => u && !validUsages.includes(u));
+        
+        if (invalidUsages.length > 0) {
+            console.warn('Invalid key usage values:', invalidUsages);
+        }
+    });
   }
 
   createTemplateForm(): FormGroup {
@@ -66,12 +79,11 @@ export class CertificateTemplatesComponent implements OnInit {
   loadCaIssuers(): void {
     this.certificateService.getIssuers().subscribe({
       next: (issuers) => {
-        // Filtriraj samo CA sertifikate (Root i Intermediate)
         this.caIssuers = issuers.filter(issuer => 
-          issuer.type === 'ROOT' || issuer.type === 'INTERMEDIATE'
+            issuer.type === 'ROOT' || issuer.type === 'INTERMEDIATE'
         ).map(issuer => ({
-          id: issuer.id,
-          name: this.extractCommonName(issuer.subject) + ` (${issuer.type})`
+            id: issuer.id,
+            name: `${this.extractCommonName(issuer.subject)} (${issuer.type}) - Valid until: ${new Date(issuer.validTo).toLocaleDateString()}`
         }));
         
         console.log('Loaded CA issuers:', this.caIssuers);
@@ -103,7 +115,7 @@ export class CertificateTemplatesComponent implements OnInit {
     const templateData: CreateTemplateDTO = {
       name: formValue.name,
       description: formValue.description,
-      caIssuerId: 14,
+      caIssuerId: formValue.caIssuerId,
       commonNameRegex: formValue.commonNameRegex,
       sansRegex: formValue.sansRegex,
       maxValidityDays: formValue.maxValidityDays,
@@ -111,6 +123,9 @@ export class CertificateTemplatesComponent implements OnInit {
       extendedKeyUsage: formValue.extendedKeyUsage,
       basicConstraints: formValue.basicConstraints
     };
+
+    console.log('KeyUsage format:', templateData.keyUsage);
+    console.log('Full template data:', templateData);
 
     console.log('Sending template data to backend:', templateData);
 
@@ -164,14 +179,22 @@ export class CertificateTemplatesComponent implements OnInit {
   }
 
   private getKeyUsageArray(keyUsageString: string): boolean[] {
-    const usages = keyUsageString.split(',');
+    if (!keyUsageString) {
+        return [false, false, false, false, false, false, false, false, false];
+    }
+      
+    const usages = keyUsageString.toLowerCase().split(',').map(u => u.trim());
+      
     return [
-      usages.includes('digitalSignature'),
-      usages.includes('keyEncipherment'),
-      usages.includes('keyAgreement'),
-      usages.includes('keyCertSign'),
-      usages.includes('cRLSign'),
-      false, false, false, false
+        usages.includes('digitalsignature'),        // 0
+        usages.includes('nonrepudiation') || usages.includes('contentcommitment'), // 1
+        usages.includes('keyencipherment'),         // 2
+        usages.includes('dataencipherment'),        // 3
+        usages.includes('keyagreement'),            // 4
+        usages.includes('keycertsign'),             // 5
+        usages.includes('crlsign'),                 // 6
+        usages.includes('encipheronly'),            // 7
+        usages.includes('decipheronly')             // 8
     ];
   }
 
