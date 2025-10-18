@@ -12,4 +12,5 @@ public class LoginResponseDTO {
     private Long userId;
     private String email;
     private String userRole;
+    private Boolean is2faEnabled;
 }

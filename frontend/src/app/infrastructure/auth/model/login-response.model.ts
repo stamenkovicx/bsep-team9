@@ -3,4 +3,5 @@ export interface LoginResponse {
     userId: number;
     email: string;
     userRole: string;
+    is2faEnabled?: boolean;
   }

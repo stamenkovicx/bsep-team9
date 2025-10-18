@@ -37,7 +37,8 @@ export class AuthService {
             const user: User = {
               id: response.userId,
               email: response.email,
-              role: response.userRole
+              role: response.userRole,
+              is2FAEnabled: response.is2faEnabled
             };
             this.user$.next(user);
           })
@@ -80,6 +81,7 @@ export class AuthService {
         id: decodedToken.userId, // Ispravno polje je 'userId'
         email: decodedToken.sub,   // Email se nalazi u 'sub' (subject) polju
         role: decodedToken.role,   // Uloga je u 'role' polju
+        is2FAEnabled: decodedToken.is2FAEnabled || false
     };
     this.user$.next(user);
   }
