@@ -6,6 +6,7 @@ import { CreateCertificateDTO } from '../models/create-certificate.dto';
 import { AuthService } from 'src/app/infrastructure/auth/auth.service';
 import { User } from 'src/app/infrastructure/auth/model/user.model';
 import { Certificate } from '../models/certificate.interface';
+import { CertificateTemplatesService } from '../../certificate-templates/certificate-templates.service';
 
 @Component({
   selector: 'app-create-certificate',
@@ -23,9 +24,12 @@ export class CreateCertificateComponent implements OnInit {
   issuers: Certificate[] = [];      // Niz za čuvanje mogucih izdavaoca
   issuersLoading = false;           // Za prikaz spinner-a dok se ucitavaju
 
+  private templateData: any = null;
+
   constructor(
     private fb: FormBuilder,
     private certificateService: CertificateService,
+    private certificateTemplatesService: CertificateTemplatesService,
     private router: Router,
     private authService: AuthService
   ) {
@@ -35,15 +39,124 @@ export class CreateCertificateComponent implements OnInit {
   ngOnInit(): void {
     this.loadCurrentUser();
 
-    if (this.isCA()) {
-      this.certificateForm.patchValue({ certificateType: 'INTERMEDIATE' });
-      this.selectedType = 'INTERMEDIATE';
+    const templateData = this.certificateTemplatesService.getCurrentTemplateData();
+  
+    if (templateData) {
+      console.log('🎯 FOUND TEMPLATE DATA IN SERVICE:', templateData);
+      this.applyTemplateData(templateData);
     } else {
-      this.certificateForm.patchValue({ certificateType: 'ROOT' });
-      this.selectedType = 'ROOT';
+      console.log('❌ NO TEMPLATE DATA FOUND');
+      // Postavi default vrijednosti...
+      if (this.isCA()) {
+        this.certificateForm.patchValue({ certificateType: 'INTERMEDIATE' });
+        this.selectedType = 'INTERMEDIATE';
+      } else {
+        this.certificateForm.patchValue({ certificateType: 'ROOT' });
+        this.selectedType = 'ROOT';
+      }
     }
 
     this.onTypeChange();
+  }
+
+  // METODA ZA PRIMJENU TEMPLATE PODATAKA
+  private applyTemplateData(templateData: any): void {
+    this.templateData = templateData;
+
+    console.log('Applying template data:', templateData);
+    
+    // Odredi tip sertifikata
+    const isCA = templateData.basicConstraints === 'CA:TRUE';
+    const certificateType = isCA ? 'INTERMEDIATE' : 'END_ENTITY';
+    
+    // Postavi osnovne podatke
+    this.certificateForm.patchValue({ 
+      certificateType: certificateType,
+      issuerCertificateId: templateData.caIssuerId,
+      basicConstraints: isCA
+    });
+    this.selectedType = certificateType;
+    
+    // 👇 AUTOMATSKI POSTAVI DATUME
+    const today = new Date();
+    const validTo = new Date();
+    validTo.setDate(today.getDate() + templateData.maxValidityDays);
+    
+    this.certificateForm.patchValue({
+      validFrom: today,
+      validTo: validTo
+    });
+    
+    // Postavi Key Usage
+    if (templateData.keyUsage && Array.isArray(templateData.keyUsage)) {
+      this.certificateForm.patchValue({
+        keyCertSign: templateData.keyUsage[5],
+        cRLSign: templateData.keyUsage[6]
+      });
+    }
+
+    this.setupCNValidation();
+
+    // Obaveštenje korisniku
+    setTimeout(() => {
+      this.showSuccess(`Template applied! Certificate type: ${certificateType}`);
+    }, 100);
+    
+    this.onTypeChange();
+  }
+
+  private setupCNValidation(): void {
+  const cnControl = this.certificateForm.get('subjectCommonName');
+  
+  if (cnControl && this.templateData?.commonNameRegex) {
+    console.log('🔧 Setting up CN validation with pattern:', this.templateData.commonNameRegex);
+    
+    cnControl.valueChanges.subscribe(cn => {
+      console.log('🔍 CN value changed:', cn);
+      
+      if (cn && this.templateData?.commonNameRegex) {
+        try {
+          const regex = new RegExp(this.templateData.commonNameRegex);
+          const isValid = regex.test(cn);
+          
+          console.log(`🔍 Validation result: ${isValid} for "${cn}" vs pattern "${this.templateData.commonNameRegex}"`);
+          
+          if (!isValid) {
+            console.warn(`⚠️ Common Name "${cn}" doesn't match template pattern: ${this.templateData.commonNameRegex}`);
+            cnControl.setErrors({ patternMismatch: true });
+            console.log('🔍 Errors set on control:', cnControl.errors);
+          } else {
+            // Očisti grešku ako je validno
+            if (cnControl.hasError('patternMismatch')) {
+              cnControl.setErrors(null);
+              console.log('🔍 Errors cleared from control');
+            }
+          }
+        } catch (error) {
+          console.error('🔧 Regex error:', error);
+        }
+      } else {
+        console.log('🔍 No CN value or no regex pattern');
+      }
+    });
+    
+    const currentCN = cnControl.value;
+    if (currentCN && this.templateData?.commonNameRegex) {
+      console.log('🔧 Running initial validation for:', currentCN);
+      const regex = new RegExp(this.templateData.commonNameRegex);
+      const isValid = regex.test(currentCN);
+      if (!isValid) {
+        cnControl.setErrors({ patternMismatch: true });
+      }
+    }
+  } else {
+    console.log('❌ Cannot setup CN validation - missing control or regex');
+  }
+}
+
+  private showSuccess(message: string): void {
+    console.log('SUCCESS:', message);
+    // this.snackBar.open(message, 'Close', { duration: 5000 });
   }
   
   isCA(): boolean {

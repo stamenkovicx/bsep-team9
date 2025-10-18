@@ -35,4 +35,19 @@ export class CertificateTemplatesService {
   useTemplate(templateId: number): Observable<any> {
     return this.http.post(`${this.apiUrl}/${templateId}/use`, {});
   }
+
+
+  // pomocne metode za sablone:
+  private currentTemplateData: any = null;
+
+  setCurrentTemplateData(data: any): void {
+    this.currentTemplateData = data;
+    console.log('📦 Template data stored:', data);
+  }
+
+  getCurrentTemplateData(): any {
+    const data = this.currentTemplateData;
+    this.currentTemplateData = null; // Očisti nakon korišćenja
+    return data;
+  }
 }

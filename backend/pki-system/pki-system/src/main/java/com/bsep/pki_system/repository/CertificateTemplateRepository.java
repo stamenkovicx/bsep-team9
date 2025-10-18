@@ -31,4 +31,7 @@ public interface CertificateTemplateRepository extends JpaRepository<Certificate
     // Pronalazi sve šablone za CA issuer-e iz određene organizacije
     @Query("SELECT ct FROM CertificateTemplate ct WHERE ct.caIssuer.owner.organization = :organization AND ct.caIssuer.isCA = true")
     List<CertificateTemplate> findTemplatesForOrganizationCAs(@Param("organization") String organization);
+
+    @Query("SELECT COUNT(t) > 0 FROM CertificateTemplate t WHERE t.name = :name AND t.id != :id")
+    boolean existsByNameAndIdNot(@Param("name") String name, @Param("id") Long id);
 }
