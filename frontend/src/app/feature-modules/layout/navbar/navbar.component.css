@@ -63,3 +63,11 @@ div {
     padding: 0 12px;
   }
 }
+.navbar-2fa-btn[disabled] {
+  background-color: rgba(0, 0, 0, 0.12) !important;
+  color: rgba(0, 0, 0, 0.38) !important;   
+}
+
+.navbar-2fa-btn[disabled] {
+  box-shadow: none;
+}

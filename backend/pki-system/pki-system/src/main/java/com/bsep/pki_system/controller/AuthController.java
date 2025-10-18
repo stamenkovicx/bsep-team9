@@ -181,7 +181,7 @@ public class AuthController {
 
         // 3. USPESNA PRIJAVA (Generisanje tokena)
         String token = jwtService.generateToken(user);
-        return ResponseEntity.ok(new LoginResponseDTO(token, user.getId(), user.getEmail(), user.getRole().toString()));
+        return ResponseEntity.ok(new LoginResponseDTO(token, user.getId(), user.getEmail(), user.getRole().toString(),user.getIs2faEnabled()));
     }
 
     @PostMapping("/resend-verification")
