@@ -33,7 +33,7 @@
             <mat-icon matSuffix>business</mat-icon>
           </mat-form-field>
           
-          <mat-form-field appearance="outline">
+          <mat-form-field *ngIf="!isAdmin()" appearance="outline">
             <mat-label>Password</mat-label>
             <input matInput formControlName="password" type="password" (input)="onPasswordChange()">
             <mat-icon matSuffix>vpn_key</mat-icon>
@@ -46,7 +46,7 @@
             <p class="strength-text" [ngClass]="passwordStrength.class">{{ passwordStrength.label }}</p>
           </div>
           
-          <mat-form-field appearance="outline">
+          <mat-form-field *ngIf="!isAdmin()" appearance="outline">
             <mat-label>Confirm Password</mat-label>
             <input matInput formControlName="confirmPassword" type="password">
             <mat-icon matSuffix>vpn_key</mat-icon>

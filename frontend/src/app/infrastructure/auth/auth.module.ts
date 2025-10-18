@@ -8,7 +8,8 @@ import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
 import { MatCardModule } from '@angular/material/card';
 import { RouterModule } from '@angular/router';
 import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field'; 
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { ChangePasswordRequiredComponent } from './change-password-required/change-password-required.component'; 
 
 
 
@@ -17,7 +18,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 @NgModule({
   declarations: [
     LoginComponent,
-    RegistrationComponent
+    RegistrationComponent,
+    ChangePasswordRequiredComponent
   ],
   imports: [
     CommonModule,

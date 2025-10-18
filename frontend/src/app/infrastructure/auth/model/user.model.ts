@@ -3,5 +3,6 @@ export interface User {
     email: string;
     role: string;
     is2FAEnabled?: boolean;
+    passwordChangeRequired?: boolean;
 }
   
