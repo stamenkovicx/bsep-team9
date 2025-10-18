@@ -35,6 +35,7 @@ export interface Certificate {
   
   // Issuer certificate reference
   issuerCertificate?: Certificate;
+  children?: Certificate[]; //polje za hijerarhiju
   
   // Parsed subject fields (optional - za lakši prikaz)
   subjectCommonName?: string;

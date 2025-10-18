@@ -1,0 +1,72 @@
+.chain-container {
+    padding-top: 16px;
+  }
+  
+  /* Stil za ceo red (node) u stablu */
+  .cert-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 8px 0; 
+    box-sizing: border-box;
+  }
+  
+  /* 1. Ikonica sertifikata */
+  .cert-icon {
+    margin-left: 8px;
+    margin-right: 16px;
+    color: #007bff; /* Plava za CA/Root */
+  }
+  
+  /* Leaf node (End-Entity) ikonice mogu biti drugačije */
+  .leaf-node .cert-icon {
+    color: #6c757d; /* Siva za običan sertifikat */
+  }
+  
+  
+  /* 2. Informacije (Ime i tip) */
+  .cert-info {
+    flex-grow: 1; /* Zauzima sav preostali prostor */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .cert-name {
+    font-weight: 500;
+    color: #333;
+  }
+  
+  /* 3. Status Chip (Stil kao na tvojoj slici) */
+  .cert-status-chip {
+    flex-grow: 0;
+    margin-left: 16px;
+    margin-right: 16px;
+    padding: 4px 12px;
+    border-radius: 16px; 
+    font-weight: bold;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    color: white; 
+  }
+  
+  /* Boje za različite statuse */
+  .cert-status-chip.valid {
+    background-color: #28a745; /* Zelena */
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+  }
+  
+  .cert-status-chip.revoked {
+    background-color: #dc3545; /* Crvena */
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+  }
+  
+  .cert-status-chip.expired {
+    background-color: #6c757d; /* Siva */
+    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
+  }
+  
+  /* Smanjujemo podrazumevanu visinu reda */
+  ::ng-deep .mat-tree-node, 
+  ::ng-deep .mat-nested-tree-node {
+    min-height: auto;
+  }

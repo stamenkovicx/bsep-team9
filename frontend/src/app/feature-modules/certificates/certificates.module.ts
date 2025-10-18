@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule } from '@angular/forms';
+import { HttpClientModule } from '@angular/common/http';
 
 // Angular Material imports
 import { MatCardModule } from '@angular/material/card';
@@ -16,15 +17,19 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 import { CertificatesRoutingModule } from './certificates-routing.module';
 import { CreateCertificateComponent } from './create-certificate/create-certificate.component';
+import { ChainViewComponent } from './chain-view/chain-view/chain-view.component';
+import { MatTreeModule } from '@angular/material/tree';
 
 @NgModule({
   declarations: [
     CreateCertificateComponent,
+    ChainViewComponent,
   ],
   imports: [
     CommonModule,
     ReactiveFormsModule,  
     CertificatesRoutingModule,
+    HttpClientModule,
     
     // Angular Material modules
     MatCardModule,
@@ -36,7 +41,8 @@ import { CreateCertificateComponent } from './create-certificate/create-certific
     MatDatepickerModule,
     MatNativeDateModule,
     MatButtonModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatTreeModule
   ]
 })
 export class CertificatesModule { }
