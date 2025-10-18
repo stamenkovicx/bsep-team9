@@ -1,6 +1,6 @@
 <div class="certificate-container">
   <mat-card class="certificate-card">
-    <button mat-stroked-button color="accent" 
+    <button *ngIf="isCA()" mat-stroked-button color="accent" 
           routerLink="/templates" class="template-header-button">
       <mat-icon>description</mat-icon>
       USE TEMPLATE
