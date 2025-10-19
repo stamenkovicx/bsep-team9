@@ -1,6 +1,7 @@
 package com.bsep.pki_system.controller;
 
 import com.bsep.pki_system.dto.CreateCertificateDTO;
+import com.bsep.pki_system.dto.CreateEECsrRequestDTO;
 import com.bsep.pki_system.jwt.UserPrincipal;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.model.CertificateType;
@@ -8,8 +9,11 @@ import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.service.CertificateGeneratorService;
 import com.bsep.pki_system.service.CertificateService;
+import com.bsep.pki_system.service.KeystoreService;
 import com.bsep.pki_system.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -17,8 +21,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.TimeZone;
 
 @RestController
 @RequestMapping("/api/certificates")
@@ -27,11 +34,13 @@ public class CertificateController {
     private final CertificateService certificateService;
     private final UserService userService;
     private final CertificateGeneratorService certificateGeneratorService;
+    private final KeystoreService keystoreService;
 
-    public CertificateController(CertificateService certificateService, UserService userService, CertificateGeneratorService certificateGeneratorService) {
+    public CertificateController(CertificateService certificateService, UserService userService, CertificateGeneratorService certificateGeneratorService, KeystoreService keyStoreService) {
         this.certificateService = certificateService;
         this.userService = userService;
         this.certificateGeneratorService = certificateGeneratorService;
+        this.keystoreService = keyStoreService;
     }
 
     // GET - Prikaz svih sertifikata (za admina)
@@ -114,15 +123,25 @@ public class CertificateController {
         if (user.getRole() == UserRole.ADMIN) return true;
 
         // Vlasnik može svoj intermediate sertifikat
-        if (certificate.getOwner().getId().equals(user.getId())) return true;
+        if (certificate.getOwner().getId().equals(user.getId())) {
+            // Običan korisnik (USER/BASIC) sme da povuče SAMO svoj EE sertifikat
+            if (user.getRole() == UserRole.BASIC) {
+                return certificate.getType() == CertificateType.END_ENTITY;
+            }
+            // CA korisnik sme da povuče svoj Intermediate sertifikat ili EE koji je u lancu.
+            return true;
+        }
 
-        // CA može sertifikate iz svoje organizacije
+        // CA može sertifikate iz svoje organizacije (Intermediate i EE, ne ROOT)
         if (user.getRole() == UserRole.CA) {
-            return certificate.getOwner().getOrganization().equals(user.getOrganization());
+            // Proveravamo da li je iz iste organizacije
+            return certificate.getOwner().getOrganization().equals(user.getOrganization())
+                    && certificate.getType() != CertificateType.ROOT; // Ne sme da povuče ROOT
         }
 
         return false;
     }
+
 
     private boolean isValidRevocationReason(String reason) {
         List<String> validReasons = List.of(
@@ -343,6 +362,88 @@ public class CertificateController {
 
         } catch (Exception e) {
             return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'CA')")
+    @PostMapping("/end-entity/csr")
+    public ResponseEntity<?> createEECertificateFromCsr(
+            @Valid @RequestBody CreateEECsrRequestDTO request, // 🔥 Korišćenje novog DTO-a
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+
+        try {
+            User owner = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            // Jackson je automatski parsirao sva polja u ispravne tipove (String, Date, Long)
+            String csrPem = request.getCsrPem();
+            Date validTo = request.getValidTo();
+            Long issuerCertificateId = request.getIssuerCertificateId();
+
+            Date validFrom = new Date();
+
+            if (validTo.before(validFrom)) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Valid to date must be after today's date."));
+            }
+
+            // Poziv servisa za generisanje i čuvanje EE sertifikata
+            Certificate savedCertificate = certificateService.createAndSaveEECertificateFromCsr(
+                    csrPem, validFrom, validTo, issuerCertificateId, owner);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "End-Entity certificate created successfully from CSR",
+                    "certificateId", savedCertificate.getId(),
+                    "serialNumber", savedCertificate.getSerialNumber()
+            ));
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error creating End-Entity certificate: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'CA')")
+    @GetMapping("/end-entity")
+    public ResponseEntity<List<Certificate>> getMyEESertificates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        User user = userService.findByEmail(userPrincipal.getEmail())
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        // Vraća sve sertifikate gde je 'owner' trenutni korisnik i tip je END_ENTITY
+        // Pretpostavljamo da CertificateService ima findByOwnerIdAndType metodu.
+        List<Certificate> certificates = certificateService.findByOwnerIdAndType(user.getId(), CertificateType.END_ENTITY);
+        return ResponseEntity.ok(certificates);
+    }
+
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'CA')")
+    @GetMapping("/end-entity/download/{serialNumber}")
+    public ResponseEntity<byte[]> downloadEECertificate(@PathVariable String serialNumber, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            Certificate eeCertificate = certificateService.findBySerialNumber(serialNumber)
+                    .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
+
+            // Provera da li korisnik ima pravo da preuzme (mora biti vlasnik i mora biti EE)
+            if (!eeCertificate.getOwner().getId().equals(user.getId()) || eeCertificate.getType() != CertificateType.END_ENTITY) {
+                return ResponseEntity.status(403).body(null);
+            }
+
+            // Učitavanje i vraćanje X.509 sertifikata
+            byte[] certBytes = keystoreService.getCertificateBytes("EE_" + serialNumber);
+
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("application/x-x509-ca-cert"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + serialNumber + ".cer")
+                    .body(certBytes);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).build();
         }
     }
 }

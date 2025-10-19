@@ -21,11 +21,13 @@ import { CreateCertificateComponent } from './create-certificate/create-certific
 import { ChainViewComponent } from './chain-view/chain-view/chain-view.component';
 import { MatTreeModule } from '@angular/material/tree';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { CreateEeCsrComponent } from './create-ee-csr/create-ee-csr.component';
 
 @NgModule({
   declarations: [
     CreateCertificateComponent,
     ChainViewComponent,
+    CreateEeCsrComponent,
   ],
   imports: [
     CommonModule,

@@ -52,7 +52,12 @@
         <h3>Create New</h3>
         <p>Issue new certificate</p>
       </div>
-    </div>
+    <div *ngIf="isLoggedIn()" class="action-card action-card-ee" routerLink="/certificates/issue/csr">
+    <mat-icon class="action-icon">vpn_key</mat-icon>
+    <h3>End-Entity CSR</h3>
+    <p>Issue End-Entity Certificate via CSR</p>
+</div>
+</div>
 
     <div class="recent-certificates">
       <div class="section-header">

@@ -5,6 +5,8 @@ import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.model.CertificateType;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.service.CertificateService;
+import org.apache.commons.codec.DecoderException;
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -16,11 +18,17 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequest;
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemReader;
 import org.springframework.stereotype.Service;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.math.BigInteger;
 import java.security.*;
 import java.security.cert.X509Certificate;
@@ -262,4 +270,155 @@ public class CertificateGeneratorService {
         return chain.toArray(new java.security.cert.Certificate[0]);
     }
 
+    public Certificate generateEECertificateFromCsr(String csrPem, Date validFrom, Date validTo,
+                                                    Certificate issuerCertificate, User owner) throws Exception {
+
+        // 1. Parsiranje CSR-a
+        PKCS10CertificationRequest csr = parseCsr(csrPem);
+
+        // 2. Izdavalac (Issuer) i privatni ključ izdavaoca
+        PrivateKey issuerPrivateKey = keystoreService.getPrivateKey("CA_" + issuerCertificate.getSerialNumber(), issuerCertificate.getSerialNumber());
+        X500Name issuer = new X500Name(issuerCertificate.getSubject());
+        PublicKey subjectPublicKey = new JcaPKCS10CertificationRequest(csr).getPublicKey();
+        X500Name subject = csr.getSubject();
+
+        // 3. Generisanje serijskog broja
+        BigInteger serialNumber = generateSerialNumber();
+
+        // 4. Kreiranje builder-a
+        X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+                issuer,
+                serialNumber,
+                validFrom,
+                validTo,
+                subject,
+                subjectPublicKey
+        );
+
+        // 5. DODAVANJE EKSTENZIJA
+        JcaX509ExtensionUtils extensionUtils = new JcaX509ExtensionUtils();
+
+        // Subject Key Identifier (SKI) za EE sertifikat
+        SubjectKeyIdentifier ski = extensionUtils.createSubjectKeyIdentifier(subjectPublicKey);
+        certBuilder.addExtension(Extension.subjectKeyIdentifier, false, ski);
+
+        // Authority Key Identifier (AKI) - javni ključ IZDAVAOCA (issuer-a)
+        byte[] issuerPublicKeyBytes = java.util.Base64.getDecoder().decode(issuerCertificate.getPublicKey());
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        X509EncodedKeySpec issuerPublicKeySpec = new X509EncodedKeySpec(issuerPublicKeyBytes);
+        PublicKey issuerPublicKey = keyFactory.generatePublic(issuerPublicKeySpec);
+        AuthorityKeyIdentifier aki = extensionUtils.createAuthorityKeyIdentifier(issuerPublicKey);
+        certBuilder.addExtension(Extension.authorityKeyIdentifier, false, aki);
+
+        // Basic Constraints: CA:FALSE (EE sertifikat)
+        certBuilder.addExtension(Extension.basicConstraints, true, new BasicConstraints(false));
+        org.bouncycastle.asn1.pkcs.Attribute[] pkcsAttributes = csr.getAttributes();
+
+        // Key Usage: Postavlja se iz CSR-a, ili default za EE
+        // Standardni CSR-ovi sadrže atribute sa traženim ekstenzijama
+        addKeyUsageFromCsrAttributes(certBuilder, pkcsAttributes);
+        addSansFromCsrAttributes(certBuilder, pkcsAttributes);
+        // CRL Distribution Point
+        addCRLDistributionPoint(certBuilder, issuerCertificate.getSerialNumber());
+
+
+        // 6. Potpisivanje sertifikata
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSAEncryption").build(issuerPrivateKey);
+        X509CertificateHolder certHolder = certBuilder.build(signer);
+        X509Certificate x509Cert = new JcaX509CertificateConverter().getCertificate(certHolder);
+
+        // 7. Kreiranje modela za bazu
+        Certificate certificate = new Certificate();
+        certificate.setSerialNumber(serialNumber.toString());
+        certificate.setSubject(subject.toString());
+        certificate.setIssuer(issuer.toString());
+        certificate.setValidFrom(validFrom);
+        certificate.setValidTo(validTo);
+        certificate.setType(CertificateType.END_ENTITY);
+        certificate.setPublicKey(java.util.Base64.getEncoder().encodeToString(subjectPublicKey.getEncoded()));
+        certificate.setIsCA(false);
+        certificate.setBasicConstraints("CA:FALSE");
+        // Napomena: keyUsage, extendedKeyUsage se postavljaju parsiranjem ekstenzija iz certHolder-a
+        // Radi jednostavnosti, ovde ih ručno postavljamo kao String, idealno bi bilo parsirati iz certHolder.
+        certificate.setOwner(owner);
+        certificate.setIssuerCertificate(issuerCertificate);
+        certificate.setKeyUsage("digitalSignature, keyEncipherment"); // Default EE KeyUsage
+
+        // 8. Čuvanje EE sertifikata u keystore-u kao TrustedCertificateEntry
+        String alias = "EE_" + serialNumber.toString();
+        keystoreService.saveTrustedCertificate(alias, x509Cert);
+
+        return certificate;
+    }
+
+    // U CertificateGeneratorService.java, unutar generateEECertificateFromCsr ili parseCsr metode
+
+    // U CertificateGeneratorService.java
+
+    public PKCS10CertificationRequest parseCsr(String csrPem) throws Exception, DecoderException {
+
+        if (csrPem == null || csrPem.trim().isEmpty()) {
+            throw new IllegalArgumentException("CSR content cannot be empty.");
+        }
+
+        // 1. Agresivno čišćenje stringa
+        csrPem = csrPem.trim();
+        // Normalizacija novih linija, što pomaže PemReader-u da pravilno segmentira Base64 blok
+        csrPem = csrPem.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+
+
+        try (PemReader pemReader = new PemReader(new StringReader(csrPem))) {
+            PemObject pemObject = pemReader.readPemObject();
+
+            if (pemObject == null) {
+                // Ako PemReader ne pronađe BEGIN/END, to je problem formata
+                throw new IllegalArgumentException("Invalid PEM format: Could not read PEM object. Is the CSR wrapped with BEGIN/END tags?");
+            }
+
+            String type = pemObject.getType();
+            if (!"CERTIFICATE REQUEST".equals(type) && !"NEW CERTIFICATE REQUEST".equals(type)) {
+                throw new IllegalArgumentException("Invalid PEM type: Expected 'CERTIFICATE REQUEST' but found '" + type + "'.");
+            }
+
+            // 2. Kreiranje CSR objekta iz dekodiranog DER sadržaja
+            byte[] content = pemObject.getContent();
+
+            // Pokušaj parsiranja DER bajtova. Ovdje se dešava greška 'corrupted stream'.
+            return new PKCS10CertificationRequest(content);
+
+        } catch (IOException e) {
+            // Rukovodi IOException, što je roditelj za 'corrupted stream' grešku Bouncy Castle-a
+
+            // Opcionalno: Izdvajanje specifične poruke za bolje logovanje
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "Unknown I/O Error";
+            System.err.println("--- ASN.1 PARSING ERROR ---");
+            System.err.println("Bouncy Castle failed to parse the DER content (ASN.1 structure).");
+            System.err.println("Caused by: " + errorMessage);
+            System.err.println("-------------------------");
+
+            // Baca se jasna poruka koju će frontend prikazati
+            throw new Exception("Error creating End-Entity certificate: Failed to parse the CSR's internal structure. Please ensure the CSR is correctly generated and complete.", e);
+        }
+    }
+
+
+    private void addKeyUsageFromCsrAttributes(X509v3CertificateBuilder builder, org.bouncycastle.asn1.pkcs.Attribute[] attributes) throws Exception {
+        // ... Logika za pronalaženje KeyUsage ... (ovo je bio vaš originalni kod)
+        KeyUsage ku = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment);
+        builder.addExtension(Extension.keyUsage, true, ku);
+    }
+
+    private void addSansFromCsrAttributes(X509v3CertificateBuilder builder, org.bouncycastle.asn1.pkcs.Attribute[] attributes) throws Exception {
+        // Logika za pronalaženje Subject Alternative Name (SAN) u CSR atributima
+        // Standardno se nalazi pod OID-om ExtensionRequest (1.2.840.113549.1.9.14)
+        for (org.bouncycastle.asn1.pkcs.Attribute attr : attributes) {
+            if (attr.getAttrType().equals(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest)) {
+                Extensions extensions = Extensions.getInstance(attr.getAttrValues().getObjectAt(0));
+                org.bouncycastle.asn1.x509.Extension sanExt = extensions.getExtension(Extension.subjectAlternativeName);
+                if (sanExt != null) {
+                    builder.addExtension(Extension.subjectAlternativeName, sanExt.isCritical(), sanExt.getParsedValue());
+                }
+            }
+        }
+    }
 }

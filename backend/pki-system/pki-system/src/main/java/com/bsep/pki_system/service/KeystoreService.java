@@ -136,4 +136,26 @@ public class KeystoreService {
                 masterKey
         );
     }
+
+    public void saveTrustedCertificate(String alias, Certificate certificate) throws Exception {
+        KeyStore keyStore = loadOrCreateKeystore();
+
+        // Provera da li već postoji entry sa tim aliasom (za svaki slučaj)
+        if (keyStore.containsAlias(alias)) {
+            keyStore.deleteEntry(alias);
+        }
+
+        // setCertificateEntry se koristi za Trusted Certificate (nema privatnog ključa)
+        keyStore.setCertificateEntry(alias, certificate);
+
+        saveKeystore(keyStore);
+    }
+
+    public byte[] getCertificateBytes(String alias) throws Exception {
+        Certificate cert = getCertificate(alias);
+        if (cert == null) {
+            throw new KeyStoreException("Certificate not found for alias: " + alias);
+        }
+        return cert.getEncoded();
+    }
 }
