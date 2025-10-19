@@ -2,10 +2,7 @@ package com.bsep.pki_system.jwt;
 
 import com.bsep.pki_system.model.User;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -61,7 +58,7 @@ public class JwtService {
 
     public String generateTemporaryToken(User user) {
         // kraći rok važenja, npr. 10 minuta
-        long temporaryExpirationMs = 10 * 60 * 1000; // 10 minuta
+        long temporaryExpirationMs = 48 * 60 * 60 * 1000; // 48 sati
 
         return Jwts.builder()
                 .setSubject(user.getEmail())
@@ -87,6 +84,23 @@ public class JwtService {
             return claims.getSubject(); // subject je email
         } catch (JwtException | IllegalArgumentException e) {
             return null; // token ne važi ili je neispravan
+        }
+    }
+
+    public Claims getClaimsFromExpiredToken(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (ExpiredJwtException e) {
+            // Vrati claims iz expired tokena - ovo je ključno!
+            System.out.println("⚠️ Token expired, but returning claims from expired token");
+            return e.getClaims();
+        } catch (Exception e) {
+            System.out.println("❌ Error reading token claims: " + e.getMessage());
+            throw e;
         }
     }
 }

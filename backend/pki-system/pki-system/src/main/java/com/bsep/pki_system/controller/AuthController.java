@@ -9,6 +9,7 @@ import com.bsep.pki_system.service.EmailVerificationService;
 import com.bsep.pki_system.service.RecaptchaService;
 import com.bsep.pki_system.service.UserService;
 import com.bsep.pki_system.validator.PasswordValidator;
+import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -346,9 +347,32 @@ public class AuthController {
 
             String email = jwtService.getEmailFromTemporaryToken(tempToken);
 
+            // Ako je token expired, generiši novi
             if (email == null) {
-                return ResponseEntity.status(401).body(Map.of("message", "Invalid or expired token"));
+                try {
+                    // Pokušaj da izvučeš email iz expired tokena
+                    Claims expiredClaims = jwtService.getClaimsFromExpiredToken(tempToken);
+                    email = expiredClaims.getSubject();
+
+                    // Pronađi korisnika i generiši novi token
+                    User user = userService.findByEmail(email)
+                            .orElseThrow(() -> new RuntimeException("User not found"));
+
+                    String newTempToken = jwtService.generateTemporaryToken(user);
+
+                    return ResponseEntity.status(401).body(Map.of(
+                            "message", "Token has expired. A new token has been generated.",
+                            "newToken", newTempToken,
+                            "retry", true
+                    ));
+
+                } catch (Exception e) {
+                    return ResponseEntity.status(401).body(Map.of(
+                            "message", "Invalid token. Please login again."
+                    ));
+                }
             }
+
 
             User user = userService.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
