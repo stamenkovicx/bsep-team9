@@ -30,12 +30,12 @@
                 </div>
     
                 <span class="cert-status-chip"
-                      [ngClass]="(node.data.status === 'REVOKED') ? 'revoked' : (node.isChainInvalid ? 'chain_invalid' : 'valid')">
-                  {{ (node.data.status === 'REVOKED') ? 'REVOKED' : (node.isChainInvalid ? 'INVALID' : 'VALID') }}
-                </span>
+                  [ngClass]="(node.data.status === 'REVOKED') ? 'revoked' : ($any(node.data).isChainInvalid ? 'chain_invalid' : 'valid')">
+                  {{ (node.data.status === 'REVOKED') ? 'REVOKED' : ($any(node.data).isChainInvalid ? 'INVALID' : 'VALID') }}
+              </span>
     
                 <div class="cert-actions" *ngIf="isAdmin() || isCA()">
-                  <button *ngIf="canRevoke(node.data, node.isChainInvalid)"
+                  <button *ngIf="canRevoke(node.data, $any(node.data).isChainInvalid)"
                           mat-icon-button
                           color="warn"
                           (click)="openRevokeDialog(node.data)"
