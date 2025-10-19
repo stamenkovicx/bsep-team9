@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class CertificateService {
@@ -178,23 +179,24 @@ public class CertificateService {
     //Pronalazi listu validnih sertifikata za potpisivanje (issuers) na osnovu uloge ulogovanog korisnika
     public List<Certificate> findValidIssuersForUser(User user) {
         Date now = new Date();
-        if (user.getRole() == UserRole.ADMIN) {
-            // Admin može da koristi bilo koji validan CA sertifikat iz sistema
-            return certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
-        }
-        // CA korisnik može da koristi samo validne CA sertifikate iz svoje organizacije
-        if (user.getRole() == UserRole.CA) {
-            // Prvo dobavljamo SVE validne CA sertifikate
-            List<Certificate> allValidIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
 
-            // Zatim ih filtriramo koristeći ISTU logiku kao za /my-chain
-            // Proveravamo da li sertifikat pripada lancu organizacije CA korisnika
-            return allValidIssuers.stream()
-                    .filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()))
-                    .collect(Collectors.toList());
+        // 1. Dobavi SVE potencijalne izdavaoce (CA=true, status=VALID, datum OK)
+        List<Certificate> potentialIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
+
+        // 2. Kreiraj Stream za dalje filtriranje
+        Stream<Certificate> filteredStream = potentialIssuers.stream();
+
+        // 3. Ako je korisnik CA, filtriraj po organizaciji
+        if (user.getRole() == UserRole.CA) {
+            filteredStream = filteredStream.filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()));
         }
-        // Ako uloga nije ni ADMIN ni CA, vrati praznu listu
-        return Collections.emptyList();
+        // Ako je Admin (vidi sve organizacije)
+
+        // 4.Filtriraj SAMO one ciji je CEO LANAC validan !!
+        // Koristimo 'isCertificateValid' jer ona interno poziva 'isChainValid'
+        filteredStream = filteredStream.filter(cert -> this.isCertificateValid(cert.getId()));
+
+        return filteredStream.collect(Collectors.toList());
     }
 
     //Pronalazi sve sertifikate koji pripadaju "lancu" ulogovanog korisnika.

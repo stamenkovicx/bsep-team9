@@ -265,23 +265,6 @@ export class ChainViewComponent implements OnInit {
     return null;
   }
   getTooltipText(node: CertificateFlatNode): string {
-    if (node.data.status === 'REVOKED') {
-      const reasonLabel = this.getRevocationReasonLabel(node.data.revocationReason || '');
-      // Formatiramo datum ako postoji ( node.data.revokedAt string u ISO formatu)
-      let revokedAtString = '';
-      if (node.data.revokedAt) {
-        try {
-          // Probamo da formatiramo datum u lokalni format
-          revokedAtString = ` on ${new Date(node.data.revokedAt).toLocaleString()}`;
-        } catch (e) {
-        }
-      }
-      return `🚫 Revoked: ${reasonLabel}${revokedAtString}`;
-    } else if (node.isChainInvalid) {
-      return '⚠️ Invalid: Certificate chain is broken (issuer revoked/invalid).';
-    } else {
-      // Za validne sertifikate, ne prikazujemo tooltip
-      return '';
-    }
+    return '';
   }
 }
