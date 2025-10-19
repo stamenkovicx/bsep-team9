@@ -334,7 +334,7 @@ public class CertificateController {
         return pem.toString();
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'CA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA', 'BASIC')")
     @GetMapping("/issuers")
     public ResponseEntity<List<Certificate>> getAvailableIssuers(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {
@@ -365,7 +365,7 @@ public class CertificateController {
         }
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'CA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BASIC', 'CA')")
     @PostMapping("/end-entity/csr")
     public ResponseEntity<?> createEECertificateFromCsr(
             @Valid @RequestBody CreateEECsrRequestDTO request, // 🔥 Korišćenje novog DTO-a
@@ -406,7 +406,7 @@ public class CertificateController {
         }
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'CA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BASIC', 'CA')")
     @GetMapping("/end-entity")
     public ResponseEntity<List<Certificate>> getMyEESertificates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         User user = userService.findByEmail(userPrincipal.getEmail())
@@ -418,7 +418,7 @@ public class CertificateController {
         return ResponseEntity.ok(certificates);
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'CA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'BASIC', 'CA')")
     @GetMapping("/end-entity/download/{serialNumber}")
     public ResponseEntity<byte[]> downloadEECertificate(@PathVariable String serialNumber, @AuthenticationPrincipal UserPrincipal userPrincipal) {
         try {

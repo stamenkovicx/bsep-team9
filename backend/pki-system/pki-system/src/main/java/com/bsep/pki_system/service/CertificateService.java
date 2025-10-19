@@ -172,7 +172,7 @@ public class CertificateService {
             return certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
         }
         // CA korisnik može da koristi samo validne CA sertifikate iz svoje organizacije
-        if (user.getRole() == UserRole.CA) {
+
             // Prvo dobavljamo SVE validne CA sertifikate
             List<Certificate> allValidIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
 
@@ -181,9 +181,9 @@ public class CertificateService {
             return allValidIssuers.stream()
                     .filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()))
                     .collect(Collectors.toList());
-        }
+
         // Ako uloga nije ni ADMIN ni CA, vrati praznu listu
-        return Collections.emptyList();
+
     }
 
     //Pronalazi sve sertifikate koji pripadaju "lancu" ulogovanog korisnika.
