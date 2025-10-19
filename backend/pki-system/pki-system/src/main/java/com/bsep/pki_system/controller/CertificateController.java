@@ -42,8 +42,7 @@ public class CertificateController {
         return ResponseEntity.ok(certificates);
     }
 
-    // TODO: GET - Prikaz sertifikata iz njegovog lanca (za CA korisnika)
-    // TODO: GET - Prikaz EE sertifikata (za obicnog korisnika)
+
 
     // GET - Sertifikati po tipu
     @PreAuthorize("hasRole('ADMIN')")
@@ -56,9 +55,17 @@ public class CertificateController {
     // GET - Sertifikati trenutno ulogovanog korisnika
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/my-certificates")
-    public ResponseEntity<List<Certificate>> getMyCertificates(@AuthenticationPrincipal User user) {
-        List<Certificate> certificates = certificateService.findByOwner(user);
-        return ResponseEntity.ok(certificates);
+    public ResponseEntity<List<Certificate>> getMyCertificates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            // Prvo nađi User entitet
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            List<Certificate> certificates = certificateService.findByOwner(user); // Sada radi
+            return ResponseEntity.ok(certificates);
+        } catch (Exception e) {
+            return ResponseEntity.status(404).build();
+        }
     }
 
     // GET - Provjera validnosti sertifikata
@@ -118,8 +125,7 @@ public class CertificateController {
 
         // CA može sertifikate iz svoje organizacije
         if (user.getRole() == UserRole.CA) {
-            return certificate.getOwner().getOrganization().equals(user.getOrganization());
-        }
+            return certificateService.isCertificateInUserOrganizationChain(certificate, user.getOrganization());        }
 
         return false;
     }
@@ -136,15 +142,22 @@ public class CertificateController {
     // GET - Pojedinačni sertifikat
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
-    public ResponseEntity<Certificate> getCertificate(@PathVariable Long id,  @AuthenticationPrincipal User user) {
-        if (!certificateService.canUserAccessCertificate(id, user)) {
-            return ResponseEntity.status(403).build();
+    public ResponseEntity<Certificate> getCertificate(@PathVariable Long id,  @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            // Dohvatamo kompletan User objekat iz baze
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+            // Sada provera autorizacije koristi pravi User entitet
+            if (!certificateService.canUserAccessCertificate(id, user)) {
+                return ResponseEntity.status(403).build();
+            }
+            return certificateService.findById(id)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(404).build();
         }
-        return certificateService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
     }
-
     // metode za ROOT sertifikat:
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -257,10 +270,6 @@ public class CertificateController {
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
             
             // Provjera autorizacije
-            if (!certificateService.canUserAccessCertificate(id, user)) {
-                return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
-            }
-
             if (!certificateService.canUserAccessCertificate(id, user)) {
                 return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
             }

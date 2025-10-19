@@ -92,6 +92,17 @@ public class CertificateService {
             certificate.setRevocationReason(reason);
             certificate.setRevokedAt(LocalDateTime.now());
             certificateRepository.save(certificate);
+            try {
+                if (certificate.getIssuerCertificate() != null) {
+                    // Ovo je Intermediate ili EE sertifikat. Obrisi kes njegovog IZDAVAOCA.
+                    crlService.clearCache(certificate.getIssuerCertificate().getSerialNumber());
+                } else {
+                    // Ovo je Root sertifikat. Obrisi kes za NJEGA SAMOG.
+                    crlService.clearCache(certificate.getSerialNumber());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -209,14 +220,14 @@ public class CertificateService {
     }
 
     // proverava da li sertifikat pripada lancu određene organizacije.Prolazi uz lanac od datog sertifikata sve do Root-a.
-    private boolean isCertificateInUserOrganizationChain(Certificate certificate, String userOrganization) {
+    public boolean isCertificateInUserOrganizationChain(Certificate certificate, String userOrganization) {
         Certificate current = certificate;
         while (current != null) {
             // Izvlači organizaciju iz Subject polja trenutnog sertifikata u lancu.
             String certOrganization = getOrganizationFromSubject(current.getSubject());
 
             // Ako se organizacije poklapaju, sertifikat je deo lanca.
-            if (userOrganization.equals(certOrganization)) {
+            if (userOrganization != null && userOrganization.equals(certOrganization)) {
                 return true;
             }
             // Pređi na sledeći sertifikat u lancu (roditelja).
@@ -269,7 +280,11 @@ public class CertificateService {
                 e.printStackTrace();
                 return false;
             }
-            // Pređi na sledeći sertifikat u lancu
+            if (crlService.isCertificateRevoked(current, issuer)) {
+                // Ako JESTE na listi, lanac NIJE validan
+                return false;
+            }
+            // Predji na sledeci sertifikat u lancu
             current = issuer;
         }
 
