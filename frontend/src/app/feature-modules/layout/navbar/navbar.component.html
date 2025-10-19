@@ -10,6 +10,7 @@
                 [disabled]="user.is2FAEnabled"> <mat-icon>security</mat-icon>
                 2FA Setup
             </button>
+            <button *ngIf="user && user.email !== '' && user.role === 'ADMIN'  " color="accent" mat-raised-button [routerLink]="['register']">Register CA</button>
             <button *ngIf="user && user.email === ''" color="accent" mat-raised-button [routerLink]="['login']">Login</button>
             <button *ngIf="user && user.email !== ''" color="accent" mat-raised-button (click)="onLogout()">Logout</button>
             <button color="primary" mat-raised-button [routerLink]="['home']">Home</button>
