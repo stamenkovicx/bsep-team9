@@ -11,8 +11,16 @@ import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
+import java.io.ByteArrayInputStream;
 import java.math.BigInteger;
+import java.security.KeyFactory;
 import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509CRL;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
@@ -23,6 +31,7 @@ public class CRLService {
 
     private final CertificateRepository certificateRepository;
     private final KeystoreService keystoreService;
+    private final Map<String, byte[]> crlCache = new ConcurrentHashMap<>();
 
     public CRLService(CertificateRepository certificateRepository, KeystoreService keystoreService) {
         this.certificateRepository = certificateRepository;
@@ -30,7 +39,7 @@ public class CRLService {
     }
 
     //Generiše CRL listu za dati CA sertifikat
-    public byte[] generateCRL(Certificate caCertificate) throws Exception {
+    private byte[] generateCRL(Certificate caCertificate) throws Exception {
         // 1. Pronađi sve povučene sertifikate koje je izdao ovaj CA
         List<Certificate> revokedCerts = certificateRepository.findByIssuerCertificateId(caCertificate.getId())
                 .stream()
@@ -40,6 +49,10 @@ public class CRLService {
         // 2. Učitaj privatni ključ CA-a
         String alias = "CA_" + caCertificate.getSerialNumber();
         PrivateKey caPrivateKey = keystoreService.getPrivateKey(alias, caCertificate.getSerialNumber());
+
+        if (caPrivateKey == null) {
+            throw new RuntimeException("Private key not found for CA: " + caCertificate.getSerialNumber());
+        }
 
         // 3. Kreiraj CRL builder
         X500Name issuer = new X500Name(caCertificate.getSubject());
@@ -93,5 +106,60 @@ public class CRLService {
             case "aacompromise" -> CRLReason.aACompromise;
             default -> CRLReason.unspecified;
         };
+    }
+    public boolean isCertificateRevoked(Certificate certificateToCheck, Certificate issuer) {
+        try {
+            // 1. Generiši (ili dohvati) najnoviju CRL listu za izdavaoca
+            byte[] crlBytes = getOrGenerateCRL(issuer);
+
+            // 2. Parsiraj CRL bajtove u X509CRL objekat
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509CRL crl = (X509CRL) cf.generateCRL(new ByteArrayInputStream(crlBytes));
+
+            // 3. Verifikuj potpis CRL liste (da li ju je zaista potpisao izdavalac)
+            byte[] issuerPublicKeyBytes = java.util.Base64.getDecoder().decode(issuer.getPublicKey());
+            KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+            PublicKey issuerPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(issuerPublicKeyBytes));
+
+            crl.verify(issuerPublicKey); // Baciće izuzetak ako potpis nije validan
+
+            // 4. proveri da li je serijski broj sertifikata na listi
+            BigInteger serialToCheck = new BigInteger(certificateToCheck.getSerialNumber());
+
+            // crl.getRevokedCertificate() vraća non-null ako je serijski broj na listi
+            return crl.getRevokedCertificate(serialToCheck) != null;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return true;
+        }
+    }
+     //proverava kes pre generisanja
+    public byte[] getOrGenerateCRL(Certificate caCertificate) throws Exception {
+        String issuerSerial = caCertificate.getSerialNumber();
+
+        //Da li CRL uopste postoji u kesu?
+        if (!crlCache.containsKey(issuerSerial)) {
+            // Ne postoji, generisi ga, stavi u kes i vrati
+            byte[] newCrl = generateCRL(caCertificate);
+            crlCache.put(issuerSerial, newCrl);
+            return newCrl;
+        }
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509CRL crl = (X509CRL) cf.generateCRL(new ByteArrayInputStream(crlCache.get(issuerSerial)));
+
+        if (crl.getNextUpdate().before(new Date())) {
+            // Kesirana lista je istekla. Generisi novu.
+            byte[] newCrl = generateCRL(caCertificate);
+            crlCache.put(issuerSerial, newCrl);
+            return newCrl;
+        }
+        // Kesirana lista je validna i sveza. Vracam je.
+        return crlCache.get(issuerSerial);
+    }
+    public void clearCache(String issuerSerialNumber) {
+        if (issuerSerialNumber != null) {
+            crlCache.remove(issuerSerialNumber);
+        }
     }
 }

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.bouncycastle.asn1.x509.AuthorityKeyIdentifier;
 import org.bouncycastle.asn1.x509.SubjectKeyIdentifier;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigInteger;
 import java.security.*;
@@ -48,6 +49,8 @@ public class CertificateGeneratorService {
     public KeystoreService getKeystoreService() {
         return keystoreService;
     }
+
+    @Transactional(rollbackFor = Exception.class)
     public Certificate generateRootCertificate(CreateCertificateDTO request, User owner) throws Exception {
         // 1. Generisanje para ključeva
         KeyPair keyPair = generateKeyPair();
@@ -153,6 +156,7 @@ public class CertificateGeneratorService {
         builder.addExtension(Extension.keyUsage, true, ku);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Certificate generateIntermediateCertificate(CreateCertificateDTO request, User owner, Certificate issuerCertificate) throws Exception {
         // 1. Generisanje para ključeva za novi, intermediate sertifikat
         KeyPair keyPair = generateKeyPair();
