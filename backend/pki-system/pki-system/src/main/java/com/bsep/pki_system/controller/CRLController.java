@@ -30,7 +30,7 @@ public class CRLController {
                     .orElseThrow(() -> new RuntimeException("CA certificate not found"));
 
             // Generiši CRL
-            byte[] crlBytes = crlService.generateCRL(caCertificate);
+            byte[] crlBytes = crlService.getOrGenerateCRL(caCertificate);
 
             // Vrati kao .crl fajl
             return ResponseEntity.ok()

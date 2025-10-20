@@ -1,142 +1,188 @@
-/* U 'src/app/feature-modules/certificates/chain-view/chain-view/chain-view.component.css' */
 
-.chain-container {
-    padding-top: 16px;
-}
-.cert-row {
+   mat-card {
+    margin-top: 1rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .chain-container {
+    padding: 16px 0;
+  }
+  
+  .cert-row {
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 8px 0; 
+    padding: 14px 8px; /* Ostavljamo veći padding */
     box-sizing: border-box;
-}
-.cert-icon {
+    border-bottom: 1px solid #e0e0e0;
+    transition: background-color 0.2s ease-in-out;
+  }
+  
+  .cert-row:last-child {
+    border-bottom: none;
+  }
+  
+  .cert-row:hover {
+    background-color: #f5f5f5;
+  }
+  
+  /* Uklanjamo default padding koji dodaje Material Tree */
+  ::ng-deep .mat-tree-node,
+  ::ng-deep .mat-nested-tree-node {
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+  
+
+  .cert-icon {
     margin-left: 8px;
-    margin-right: 16px;
-    color: #007bff;
-}
-.leaf-node .cert-icon {
-    color: #6c757d; 
-}
-.cert-info {
-    flex-grow: 1; 
+    margin-right: 12px;
+    color: rgba(0, 0, 0, 0.54);
+    font-size: 22px; /* Ostavljamo ikonicu malo veću */
+  }
+  
+  .cert-info {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-}
-.cert-name {
-    font-weight: 500;
-    color: #333;
-}
-.cert-status-chip {
-    flex-shrink: 0;
-    margin-left: 16px;
-    padding: 4px 12px;
-    border-radius: 16px; 
-    font-weight: bold;
-    font-size: 0.8em;
-    text-transform: uppercase;
-    color: white; 
-}
-.cert-status-chip.valid {
-    background-color: #28a745;
-    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
-}
-.cert-status-chip.revoked {
-    background-color: #dc3545;
-    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
-}
-.cert-status-chip.expired {
-    background-color: #6c757d;
-    box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3);
-}
+    padding-right: 16px;
+  }
+  
+  .cert-name {
+    font-weight: 400; /* Normalna debljina */
+    color: #212121;
+    font-size: 1.05em; /* Povećano sa 1em */
+  }
 
-/* Smanjujemo podrazumevanu visinu reda */
-::ng-deep .mat-tree-node, 
-::ng-deep .mat-nested-tree-node {
-    min-height: auto;
-}
-  
-/* Stil za dugmiće */
-.cert-actions {
+  .cert-status-chip {
     flex-shrink: 0;
-    margin-left: 1rem;
-}
+    margin-left: auto;
+    padding: 6px 14px; /* Ostavljamo padding */
+    border-radius: 16px;
+    font-weight: bold;
+    font-size: 0.9em; /* Povećano sa 0.85em */
+    text-transform: uppercase;
+    color: white;
+    text-align: center;
+    min-width: 80px; /* Malo veća minimalna širina */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
   
-/* Stilovi za poruke (success/error) */
-.message-alert {
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    border: 1px solid transparent;
-    border-radius: 0.25rem;
-}
-.message-content {
+  .cert-status-chip.valid {
+    background-color: #28a745;
+  }
+  
+  .cert-status-chip.revoked {
+    background-color: #dc3545;
+  }
+  
+  .cert-status-chip.chain_invalid {
+    background-color: #ffc107;
+    color: #333;
+  }
+  .document-wrapper mat-card-title {
+    text-align: center; /* Centriraj tekst */
+    font-size: 2.0em; /* Povećaj font (podesi vrednost po želji, npr. 1.5em, 1.8em) */
+    padding-bottom: 1rem; /* Dodaj malo prostora ispod naslova */
+    border-bottom: 1px solid #eee; /* Opciono: Suptilna linija ispod naslova */
+    margin-bottom: 1rem; /* Opciono: Prostor pre sadržaja */
+  }
+  
+
+  .cert-actions {
+    flex-shrink: 0;
+    margin-left: 12px;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-}
-.message-content span {
-    flex-grow: 1;
-}
-.message-alert.success {
-    color: #155724;
-    background-color: #d4edda;
-    border-color: #c3e6cb;
-}
-.message-alert.error {
-    color: #721c24;
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
-}
-.message-alert mat-icon {
+  }
+  
+  .cert-actions mat-icon {
     font-size: 20px;
     height: 20px;
     width: 20px;
-}
-.message-alert button {
-    padding: 0;
-    min-width: 0;
-    width: 24px;
-    height: 24px;
-    line-height: 24px;
-}
+  }
   
-/* Stilovi za dijalog */
-.revoke-dialog-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-.cert-details {
-    background: #f9f9f9;
-    border: 1px solid #eee;
-    padding: 1rem;
-    border-radius: 8px;
-}
-.cert-details p {
-    margin: 0.25rem 0;
-}
-.serial-mono {
-    font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
-    word-break: break-all;
-}
-.warning-card {
-    background-color: #fffbe6;
-    color: #5d4037;
-    border: 1px solid #ffecb3;
-}
-/* Na kraj fajla dodaj stil za novi status */
-.cert-status-chip.chain_invalid {
-    background-color: #ffc107; /* Žuta/Narandžasta */
-    color: #333; /* Tamniji tekst */
-    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3);
-}
-/* Stil za sam tooltip panel */
-::ng-deep .mat-tooltip,
-::ng-deep .mat-mdc-tooltip { /* Dodaj ovo za novije verzije Material-a */
-  background-color: #323232; /* Tamnija pozadina */
-  color: white;             /* Beli tekst */
-  border-radius: 4px;
-  padding: 6px 10px;
-  font-size: 13px;
-}
+  .message-alert {
+    border-radius: 4px;
+  }
+  .message-content {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+  }
+  .message-content span {
+      flex-grow: 1;
+  }
+  .message-alert.success {
+      color: #155724;
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+  }
+  .message-alert.error {
+      color: #721c24;
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+  }
+  .message-alert mat-icon {
+      font-size: 20px;
+      height: 20px;
+      width: 20px;
+  }
+  .message-alert button {
+      padding: 0;
+      min-width: 0;
+      width: 24px;
+      height: 24px;
+      line-height: 24px;
+  }
+  
+  .revoke-dialog-content {
+    gap: 1.25rem;
+  }
+  
+  .cert-details {
+    background: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    padding: 1.25rem;
+    border-radius: 4px;
+  }
+  .cert-details p {
+      margin: 0.25rem 0;
+  }
+  .serial-mono {
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+      word-break: break-all;
+  }
+  
+  .warning-card {
+    background-color: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ffe0b2;
+    border-radius: 4px;
+  }
+  .warning-card mat-icon {
+    color: #fb8c00;
+  }
+  
+
+  ::ng-deep .mat-tooltip,
+  ::ng-deep .mat-mdc-tooltip {
+    background-color: #424242;
+    color: white;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+  
+  .document-wrapper {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    box-sizing: border-box;
+  }
+  
+  .document-wrapper mat-card {
+     margin-top: 0;
+     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }

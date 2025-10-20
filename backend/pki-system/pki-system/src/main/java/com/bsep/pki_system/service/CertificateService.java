@@ -20,6 +20,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class CertificateService {
@@ -92,6 +93,17 @@ public class CertificateService {
             certificate.setRevocationReason(reason);
             certificate.setRevokedAt(LocalDateTime.now());
             certificateRepository.save(certificate);
+            try {
+                if (certificate.getIssuerCertificate() != null) {
+                    // Ovo je Intermediate ili EE sertifikat. Obrisi kes njegovog IZDAVAOCA.
+                    crlService.clearCache(certificate.getIssuerCertificate().getSerialNumber());
+                } else {
+                    // Ovo je Root sertifikat. Obrisi kes za NJEGA SAMOG.
+                    crlService.clearCache(certificate.getSerialNumber());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -167,23 +179,26 @@ public class CertificateService {
     //Pronalazi listu validnih sertifikata za potpisivanje (issuers) na osnovu uloge ulogovanog korisnika
     public List<Certificate> findValidIssuersForUser(User user) {
         Date now = new Date();
-        if (user.getRole() == UserRole.ADMIN) {
-            // Admin može da koristi bilo koji validan CA sertifikat iz sistema
-            return certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
+
+        // 1. Dobavi SVE potencijalne izdavaoce (CA=true, status=VALID, datum OK)
+        List<Certificate> potentialIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
+
+        // 2. Kreiraj Stream za dalje filtriranje
+        Stream<Certificate> filteredStream = potentialIssuers.stream();
+
+        // 3. Filtriranje po ulozi korisnika (CA I USER moraju da vide samo sertifikate svoje organizacije)
+        if (user.getRole() == UserRole.CA || user.getRole() == UserRole.BASIC) {
+            // CA i USER mogu da koriste samo validne CA sertifikate iz svoje organizacije.
+            // Filtriramo sertifikate čiji lanac pripada organizaciji korisnika.
+            filteredStream = filteredStream.filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()));
         }
-        // CA korisnik može da koristi samo validne CA sertifikate iz svoje organizacije
+        // Ako je uloga ADMIN, filtriranje po organizaciji se NE RADI (vidi sve organizacije).
 
-            // Prvo dobavljamo SVE validne CA sertifikate
-            List<Certificate> allValidIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
+        // 4. Filtriraj SAMO one čiji je CEO LANAC validan
+        // Koristimo 'isCertificateValid' koja interno poziva 'isChainValid'
+        filteredStream = filteredStream.filter(cert -> this.isCertificateValid(cert.getId()));
 
-            // Zatim ih filtriramo koristeći ISTU logiku kao za /my-chain
-            // Proveravamo da li sertifikat pripada lancu organizacije CA korisnika
-            return allValidIssuers.stream()
-                    .filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()))
-                    .collect(Collectors.toList());
-
-        // Ako uloga nije ni ADMIN ni CA, vrati praznu listu
-
+        return filteredStream.collect(Collectors.toList());
     }
 
     //Pronalazi sve sertifikate koji pripadaju "lancu" ulogovanog korisnika.
@@ -209,14 +224,14 @@ public class CertificateService {
     }
 
     // proverava da li sertifikat pripada lancu određene organizacije.Prolazi uz lanac od datog sertifikata sve do Root-a.
-    private boolean isCertificateInUserOrganizationChain(Certificate certificate, String userOrganization) {
+    public boolean isCertificateInUserOrganizationChain(Certificate certificate, String userOrganization) {
         Certificate current = certificate;
         while (current != null) {
             // Izvlači organizaciju iz Subject polja trenutnog sertifikata u lancu.
             String certOrganization = getOrganizationFromSubject(current.getSubject());
 
             // Ako se organizacije poklapaju, sertifikat je deo lanca.
-            if (userOrganization.equals(certOrganization)) {
+            if (userOrganization != null && userOrganization.equals(certOrganization)) {
                 return true;
             }
             // Pređi na sledeći sertifikat u lancu (roditelja).
@@ -269,7 +284,11 @@ public class CertificateService {
                 e.printStackTrace();
                 return false;
             }
-            // Pređi na sledeći sertifikat u lancu
+            if (crlService.isCertificateRevoked(current, issuer)) {
+                // Ako JESTE na listi, lanac NIJE validan
+                return false;
+            }
+            // Predji na sledeci sertifikat u lancu
             current = issuer;
         }
 

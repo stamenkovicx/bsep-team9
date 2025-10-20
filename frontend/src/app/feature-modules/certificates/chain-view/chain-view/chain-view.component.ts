@@ -198,21 +198,22 @@ export class ChainViewComponent implements OnInit {
 
   //Ovo je preuzimanje CRL-a, ne samog sertifikata.
   downloadCRL(certificate: Certificate): void {
-    const issuerSerial = certificate.issuerCertificate?.serialNumber || certificate.serialNumber;
- 
-    this.certificateService.downloadCRL(issuerSerial).subscribe({
-    next: (blob) => {
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${issuerSerial}.crl`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-    this.showMessage('success', '📥 CRL downloaded successfully');
-  },
-    error: () => this.showMessage('error', '❌ Failed to download CRL')
-  });
-  }
+     const serialNumberForCRL = certificate.serialNumber;
+    
+     this.certificateService.downloadCRL(serialNumberForCRL).subscribe({
+       next: (blob) => {
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         // Ime fajla je serijski broj onoga ko je IZDAO listu
+         a.download = `${serialNumberForCRL}.crl`; 
+         a.click();
+         window.URL.revokeObjectURL(url);
+         this.showMessage('success', '📥 CRL downloaded successfully');
+       },
+       error: () => this.showMessage('error', '❌ Failed to download CRL')
+     });
+     }
 
   showMessage(type: 'success' | 'error', text: string): void {
     this.message = { type, text };
@@ -265,23 +266,6 @@ export class ChainViewComponent implements OnInit {
     return null;
   }
   getTooltipText(node: CertificateFlatNode): string {
-    if (node.data.status === 'REVOKED') {
-      const reasonLabel = this.getRevocationReasonLabel(node.data.revocationReason || '');
-      // Formatiramo datum ako postoji ( node.data.revokedAt string u ISO formatu)
-      let revokedAtString = '';
-      if (node.data.revokedAt) {
-        try {
-          // Probamo da formatiramo datum u lokalni format
-          revokedAtString = ` on ${new Date(node.data.revokedAt).toLocaleString()}`;
-        } catch (e) {
-        }
-      }
-      return `🚫 Revoked: ${reasonLabel}${revokedAtString}`;
-    } else if (node.isChainInvalid) {
-      return '⚠️ Invalid: Certificate chain is broken (issuer revoked/invalid).';
-    } else {
-      // Za validne sertifikate, ne prikazujemo tooltip
-      return '';
-    }
+    return '';
   }
 }

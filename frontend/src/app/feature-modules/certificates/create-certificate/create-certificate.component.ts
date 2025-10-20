@@ -228,36 +228,26 @@ private disableTemplateFields(): void {
   onTypeChange(): void {
     this.selectedType = this.certificateForm.get('certificateType')?.value;
     
-    if (this.selectedType === 'INTERMEDIATE') {
-      // Ako pravimo INTERMEDIATE, prikaže SAMO ROOT sertifikate
-      this.loadIssuers(true); 
-    } else if (this.selectedType === 'END_ENTITY') {
-      // Ako pravimo END_ENTITY,  prikaže SVE (i Root i Intermediate)
-      this.loadIssuers(false);
-    } else {
-      // Za ROOT, lista nam ne treba
-      this.issuers = [];
-    }
+    if (this.selectedType === 'INTERMEDIATE' || this.selectedType === 'END_ENTITY') {
+      this.loadIssuers(); 
+  } else {
+       // Za ROOT, lista nam ne treba
+        this.issuers = [];
+       }
 
     // Dinamički ažuriraj validaciju based on type
     this.updateValidationBasedOnType();
   }
 
   // metoda za ucitavanje liste izdavaoca 
-  private loadIssuers(filterForRootOnly: boolean): void {
-    this.issuersLoading = true;
-    this.certificateService.getIssuers().subscribe({ 
-      next: (data) => {
-        if (filterForRootOnly) {
-          // Ako je `filterForRootOnly` true, zadrži samo one sertifikate čiji je tip 'ROOT'
-          this.issuers = data.filter(cert => cert.type === 'ROOT');
-        } else {
+  private loadIssuers(): void {
+      this.issuersLoading = true;
+      this.certificateService.getIssuers().subscribe({ 
+        next: (data) => {
           this.issuers = data;
-        }
-
-        this.issuersLoading = false;
+          this.issuersLoading = false;
       },
-      error: (err) => {
+     error: (err) => {
         console.error('Error loading issuers:', err);
         this.issuersLoading = false;
       }
