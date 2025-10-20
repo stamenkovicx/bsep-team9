@@ -40,8 +40,10 @@ jobs:
       working-directory: ./backend/pki-system
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: "https://sonarcloud.io"  # ← DODAJ OVO!
       run: |
         mvn -B clean compile
-        mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+        mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:3.11.0.3922:sonar \
           -Dsonar.projectKey=stamenkovicx_bsep-team9 \
+          -Dsonar.organization=stamenkovicx \
           -DskipTests
