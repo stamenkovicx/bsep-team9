@@ -58,8 +58,8 @@ export class HomeComponent implements OnInit {
       this.certificateService.getAllCertificates().subscribe({
         next: (certificates) => {
           // Uzmi posljednja 3 sertifikata za "recent"
-          //this.recentCertificates = certificates.slice(-3).reverse();
-          this.recentCertificates = certificates
+          this.recentCertificates = certificates.slice(-3).reverse();
+          //this.recentCertificates = certificates
           this.isLoading = false;
         },
         error: (error) => {
