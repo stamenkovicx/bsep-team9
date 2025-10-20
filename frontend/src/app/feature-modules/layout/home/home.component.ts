@@ -223,5 +223,7 @@ export class HomeComponent implements OnInit {
     const found = this.revocationReasons.find(r => r.value === reason);
     return found ? found.label : reason;
   }
+
+  //treba mi za push
   
 }
