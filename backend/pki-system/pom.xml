@@ -143,4 +143,21 @@
 		</plugins>
 	</build>
 
+
+
+	<profiles>
+		<profile>
+			<id>github-actions</id>
+			<activation>
+				<property>
+					<name>env.GITHUB_ACTIONS</name>
+					<value>true</value>
+				</property>
+			</activation>
+			<properties>
+				<java.version>17</java.version>  <!-- JAVA 17 SAMO ZA GITHUB ACTIONS -->
+			</properties>
+		</profile>
+	</profiles>
+
 </project>
