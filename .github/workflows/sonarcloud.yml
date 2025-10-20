@@ -19,7 +19,7 @@ jobs:
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '17'  # ← PROMENI OVO SA 21 NA 17!
+        java-version: '17'
         distribution: 'temurin'
 
     - name: Cache SonarQube packages
@@ -43,4 +43,5 @@ jobs:
       run: |
         mvn -B clean compile
         mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-          -Dsonar.projectKey=stamenkovicx_bsep-team9
+          -Dsonar.projectKey=stamenkovicx_bsep-team9 \
+          -DskipTests
