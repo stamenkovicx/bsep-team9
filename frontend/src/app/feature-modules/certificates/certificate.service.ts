@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { map, Observable } from 'rxjs';
 import { CreateCertificateDTO } from './models/create-certificate.dto';
 import { Certificate } from './models/certificate.interface';
+import { CreateEeCsrDTO } from '../certificate-templates/models/create-ee-csr.dto';
 
 @Injectable({
   providedIn: 'root'
@@ -88,4 +89,18 @@ export class CertificateService {
       responseType: 'blob'
     });
   }
+
+  createEECertificateFromCsr(request: CreateEeCsrDTO): Observable<any> {
+    // Ova metoda poziva BE endpoint /api/certificates/end-entity/csr
+    return this.http.post(`${this.apiUrl}/end-entity/csr`, request);
+}
+downloadEECertificate(serialNumber: string): Observable<Blob> {
+  return this.http.get(`${this.apiUrl}/end-entity/download/${serialNumber}`, {
+   responseType: 'blob'
+  });
+ }
+
+ getMyEndEntityCertificates(): Observable<Certificate[]> {
+  return this.http.get<Certificate[]>(`${this.apiUrl}/end-entity`);
+}
 }

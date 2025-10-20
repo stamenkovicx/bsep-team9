@@ -62,48 +62,67 @@ export class CreateCertificateComponent implements OnInit {
   // METODA ZA PRIMJENU TEMPLATE PODATAKA
   private applyTemplateData(templateData: any): void {
     this.templateData = templateData;
-
-    console.log('Applying template data:', templateData);
     
-    // Odredi tip sertifikata
-    const isCA = templateData.basicConstraints === 'CA:TRUE';
+    // Odredi tip sertifikata (End-Entity ako je basicConstraints CA:FALSE)
+    const isCA = templateData.basicConstraints.toUpperCase() === 'CA:TRUE';
     const certificateType = isCA ? 'INTERMEDIATE' : 'END_ENTITY';
     
     // Postavi osnovne podatke
-    this.certificateForm.patchValue({ 
-      certificateType: certificateType,
-      issuerCertificateId: templateData.caIssuerId,
-      basicConstraints: isCA
-    });
-    this.selectedType = certificateType;
-    
-    // 👇 AUTOMATSKI POSTAVI DATUME
     const today = new Date();
     const validTo = new Date();
     validTo.setDate(today.getDate() + templateData.maxValidityDays);
     
-    this.certificateForm.patchValue({
-      validFrom: today,
-      validTo: validTo
+    // 💡 AŽURIRANI patchValue za sve ekstenzije
+    this.certificateForm.patchValue({ 
+        certificateType: certificateType,
+        issuerCertificateId: templateData.caIssuerId,
+        validFrom: today,
+        validTo: validTo,
+        
+        basicConstraints: isCA, // Boolean
+        extendedKeyUsage: templateData.extendedKeyUsage, // String
+        
+        // Key Usage Booleani (Pretpostavljamo da templateData.keyUsage ima 9 booleana)
+        digitalSignature: templateData.keyUsage[0],
+        nonRepudiation: templateData.keyUsage[1],
+        keyEncipherment: templateData.keyUsage[2],
+        dataEncipherment: templateData.keyUsage[3],
+        keyAgreement: templateData.keyUsage[4],
+        keyCertSign: templateData.keyUsage[5], 
+        cRLSign: templateData.keyUsage[6], 
+        encipherOnly: templateData.keyUsage[7],
+        decipherOnly: templateData.keyUsage[8],
     });
     
-    // Postavi Key Usage
-    if (templateData.keyUsage && Array.isArray(templateData.keyUsage)) {
-      this.certificateForm.patchValue({
-        keyCertSign: templateData.keyUsage[5],
-        cRLSign: templateData.keyUsage[6]
-      });
-    }
-
+    this.selectedType = certificateType;
     this.setupCNValidation();
-
-    // Obaveštenje korisniku
+    this.onTypeChange(); // Postavlja validaciju za Issuer
+    this.disableTemplateFields(); // Onemogući fiksna polja
+    
     setTimeout(() => {
       this.showSuccess(`Template applied! Certificate type: ${certificateType}`);
     }, 100);
+}
+private disableTemplateFields(): void {
+    // Onemogući sva polja koja su fiksirana šablonom
+    this.certificateForm.get('issuerCertificateId')?.disable();
+    this.certificateForm.get('validFrom')?.disable();
+    this.certificateForm.get('validTo')?.disable();
+    this.certificateForm.get('certificateType')?.disable();
+    this.certificateForm.get('basicConstraints')?.disable();
     
-    this.onTypeChange();
-  }
+    // Onemogući sve ekstenzije!
+    this.certificateForm.get('digitalSignature')?.disable();
+    this.certificateForm.get('nonRepudiation')?.disable();
+    this.certificateForm.get('keyEncipherment')?.disable();
+    this.certificateForm.get('dataEncipherment')?.disable();
+    this.certificateForm.get('keyAgreement')?.disable();
+    this.certificateForm.get('keyCertSign')?.disable();
+    this.certificateForm.get('cRLSign')?.disable();
+    this.certificateForm.get('encipherOnly')?.disable();
+    this.certificateForm.get('decipherOnly')?.disable();
+    this.certificateForm.get('extendedKeyUsage')?.disable(); 
+}
 
   private setupCNValidation(): void {
   const cnControl = this.certificateForm.get('subjectCommonName');
@@ -190,8 +209,19 @@ export class CreateCertificateComponent implements OnInit {
       
       // Extensions
       basicConstraints: [true], // CA:TRUE by default for Root
-      keyCertSign: [true],
-      cRLSign: [true]
+      // SVI Key Usage bitovi iz tvoje getKeyUsageArray u Template component-i
+        digitalSignature: [false], // [0]
+        nonRepudiation: [false],   // [1]
+        keyEncipherment: [false],  // [2]
+        dataEncipherment: [false], // [3]
+        keyAgreement: [false],     // [4]
+        keyCertSign: [true],       // [5] (ostaje zbog ROOT/INTERMEDIATE)
+        cRLSign: [true],           // [6] (ostaje zbog ROOT/INTERMEDIATE)
+        encipherOnly: [false],     // [7]
+        decipherOnly: [false],     // [8]
+        
+        // Extended Key Usage (kao string)
+        extendedKeyUsage: [''], // OVO JE NOVO DODATO POLJE
     });
   }
 
@@ -274,7 +304,7 @@ export class CreateCertificateComponent implements OnInit {
       validTo: new Date(formValue.validTo).toISOString(),
       keyUsage: this.getKeyUsageArray(formValue),
       basicConstraints: formValue.basicConstraints ? 'CA:TRUE' : 'CA:FALSE',
-      extendedKeyUsage: '',
+      extendedKeyUsage: formValue.extendedKeyUsage,
       issuerCertificateId: formValue.issuerCertificateId // Sada se uzima vrednost iz forme
     };
 
@@ -301,16 +331,19 @@ export class CreateCertificateComponent implements OnInit {
   }
 
   private getKeyUsageArray(formValue: any): boolean[] {
-    // Key Usage bits: [digitalSignature, keyEncipherment, keyAgreement, keyCertSign, cRLSign, ...]
+    // Koristi vrednosti iz forme (koje su popunjene šablonom)
     return [
-      false, // digitalSignature
-      false, // keyEncipherment  
-      false, // keyAgreement
-      formValue.keyCertSign, // keyCertSign
-      formValue.cRLSign,     // cRLSign
-      false, false, false, false // remaining bits
+      formValue.digitalSignature, // 0
+      formValue.nonRepudiation,   // 1
+      formValue.keyEncipherment,  // 2
+      formValue.dataEncipherment, // 3
+      formValue.keyAgreement,     // 4
+      formValue.keyCertSign,      // 5
+      formValue.cRLSign,          // 6
+      formValue.encipherOnly,     // 7
+      formValue.decipherOnly      // 8
     ];
-  }
+}
 onDownloadCertificate(): void {
     if (this.successData?.certificateId) {
       this.certificateService.downloadCertificate(this.successData.certificateId).subscribe({

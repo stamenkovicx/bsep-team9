@@ -186,14 +186,16 @@ public class CertificateService {
         // 2. Kreiraj Stream za dalje filtriranje
         Stream<Certificate> filteredStream = potentialIssuers.stream();
 
-        // 3. Ako je korisnik CA, filtriraj po organizaciji
-        if (user.getRole() == UserRole.CA) {
+        // 3. Filtriranje po ulozi korisnika (CA I USER moraju da vide samo sertifikate svoje organizacije)
+        if (user.getRole() == UserRole.CA || user.getRole() == UserRole.BASIC) {
+            // CA i USER mogu da koriste samo validne CA sertifikate iz svoje organizacije.
+            // Filtriramo sertifikate čiji lanac pripada organizaciji korisnika.
             filteredStream = filteredStream.filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()));
         }
-        // Ako je Admin (vidi sve organizacije)
+        // Ako je uloga ADMIN, filtriranje po organizaciji se NE RADI (vidi sve organizacije).
 
-        // 4.Filtriraj SAMO one ciji je CEO LANAC validan !!
-        // Koristimo 'isCertificateValid' jer ona interno poziva 'isChainValid'
+        // 4. Filtriraj SAMO one čiji je CEO LANAC validan
+        // Koristimo 'isCertificateValid' koja interno poziva 'isChainValid'
         filteredStream = filteredStream.filter(cert -> this.isCertificateValid(cert.getId()));
 
         return filteredStream.collect(Collectors.toList());
@@ -293,4 +295,59 @@ public class CertificateService {
         // Stigli smo do Root-a i svi potpisi u lancu su bili ispravni.
         return true;
     }
+
+    public Certificate createAndSaveEECertificateFromCsr(
+            String csrPem, Date validFrom, Date validTo, Long issuerCertificateId, User owner) throws Exception {
+
+        // 1. Pronađi sertifikat izdavaoca (issuer)
+        Certificate issuerCertificate = certificateRepository.findById(issuerCertificateId)
+                .orElseThrow(() -> new IllegalArgumentException("Issuer certificate with ID " + issuerCertificateId + " not found."));
+
+
+
+        // 3. Validacija izdavaoca (CA, važenje, status)
+        validateIssuerForSigning(issuerCertificate, validFrom, validTo);
+
+        // 4. Generiši sertifikat koristeći GeneratorService
+        Certificate eeCert = certificateGeneratorService.generateEECertificateFromCsr(
+                csrPem, validFrom, validTo, issuerCertificate, owner);
+
+        // 5. Sačuvaj ga u bazi
+        return saveCertificate(eeCert);
+    }
+
+    public List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type) {
+        // Pretpostavljam da je ova metoda dodata u CertificateRepository kao:
+        // List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type);
+        // Ako repozitorijum ne podržava direktno ovo, koristi se stream filter:
+        return certificateRepository.findByOwnerId(ownerId).stream()
+                .filter(c -> c.getType() == type)
+                .collect(Collectors.toList());
+    }
+
+    private void validateIssuerForSigning(Certificate issuer, Date newValidFrom, Date newValidTo) {
+        // Provera statusa (da li je povucen)
+        if (issuer.getStatus() != CertificateStatus.VALID) {
+            throw new IllegalArgumentException("Issuer certificate is not valid (status: " + issuer.getStatus() + ").");
+        }
+
+        // Provera da li je uopste CA
+        if (issuer.getIsCA() == null || !issuer.getIsCA()) {
+            throw new IllegalArgumentException("Issuer certificate is not a CA and cannot sign other certificates.");
+        }
+
+        // Provera datuma vazenja samog izdavaoca
+        Date now = new Date();
+        if (issuer.getValidFrom().after(now) || issuer.getValidTo().before(now)) {
+            throw new IllegalArgumentException("Issuer certificate is expired or not yet valid.");
+        }
+
+        // Ključna provera: validnost novog sertifikata mora biti unutar validnosti izdavaoca
+        if (newValidFrom.before(issuer.getValidFrom()) || newValidTo.after(issuer.getValidTo())) {
+            throw new IllegalArgumentException("The new certificate's validity period must be within the issuer's validity period.");
+        }
+    }
+
+
+
 }
