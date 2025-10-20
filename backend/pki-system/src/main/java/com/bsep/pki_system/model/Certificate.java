@@ -73,4 +73,8 @@ public class Certificate {
 
     @Column(name = "last_crl_update")
     private LocalDateTime lastCRLUpdate;
+
+    @Lob
+    @Column(name = "pem_data")
+    private String pemData;
 }

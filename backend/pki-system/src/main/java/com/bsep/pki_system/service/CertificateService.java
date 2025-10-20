@@ -3,13 +3,16 @@ package com.bsep.pki_system.service;
 import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
+import com.bsep.pki_system.util.CertificateUtil;
 import org.springframework.context.annotation.Lazy;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigInteger;
 import java.security.KeyFactory;
 import java.security.PublicKey;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
@@ -48,6 +51,7 @@ public class CertificateService {
         return certificateRepository.findById(id);
     }
 
+    @Transactional(readOnly = true)
     public Optional<Certificate> findBySerialNumber(String serialNumber) {
         return certificateRepository.findBySerialNumber(serialNumber);
     }
@@ -348,6 +352,19 @@ public class CertificateService {
         }
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public Certificate saveEndEntityCertificate(Certificate certificate, X509Certificate x509Cert) throws CertificateEncodingException {
+
+        // 1. Konvertuj X509 objekat u PEM String
+        String pemData = CertificateUtil.toPem(x509Cert);
+
+        // 2. Dodaj PEM podatke u model
+        // Ovo čuva sertifikat u bazi bez privatnog ključa, ispunjavajući zahtev.
+        certificate.setPemData(pemData);
+
+        // 3. Sačuvaj model u bazi
+        return certificateRepository.save(certificate);
+    }
 
 
 }

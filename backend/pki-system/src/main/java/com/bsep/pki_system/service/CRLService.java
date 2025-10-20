@@ -10,6 +10,7 @@ import org.bouncycastle.cert.X509v2CRLBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
@@ -39,7 +40,9 @@ public class CRLService {
     }
 
     //Generiše CRL listu za dati CA sertifikat
-    private byte[] generateCRL(Certificate caCertificate) throws Exception {
+
+    @Transactional
+    protected byte[] generateCRL(Certificate caCertificate) throws Exception {
         // 1. Pronađi sve povučene sertifikate koje je izdao ovaj CA
         List<Certificate> revokedCerts = certificateRepository.findByIssuerCertificateId(caCertificate.getId())
                 .stream()
@@ -107,6 +110,7 @@ public class CRLService {
             default -> CRLReason.unspecified;
         };
     }
+    @Transactional(readOnly = true)
     public boolean isCertificateRevoked(Certificate certificateToCheck, Certificate issuer) {
         try {
             // 1. Generiši (ili dohvati) najnoviju CRL listu za izdavaoca
