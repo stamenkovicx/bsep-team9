@@ -80,11 +80,18 @@ export class HomeComponent implements OnInit {
         }
       });
     } else {
-      // Logika za Basic korisnika ili ako nema uloge
-      this.isLoading = false;
-      this.recentCertificates = [];
-    }
+    this.certificateService.getMyEndEntityCertificates().subscribe({
+      next: (certificates) => {
+        this.recentCertificates = certificates.slice(-5).reverse(); 
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('Error loading End-Entity certificates for Basic User:', error);
+        this.isLoading = false;
+      }
+    });
   }
+}
 
   isAdmin(): boolean {
     return this.currentUser?.role === 'ADMIN'

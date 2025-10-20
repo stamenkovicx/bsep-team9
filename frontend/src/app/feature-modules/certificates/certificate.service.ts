@@ -99,4 +99,8 @@ downloadEECertificate(serialNumber: string): Observable<Blob> {
    responseType: 'blob'
   });
  }
+
+ getMyEndEntityCertificates(): Observable<Certificate[]> {
+  return this.http.get<Certificate[]>(`${this.apiUrl}/end-entity`);
+}
 }

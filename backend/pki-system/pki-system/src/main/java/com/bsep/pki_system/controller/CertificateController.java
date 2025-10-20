@@ -415,7 +415,7 @@ public class CertificateController {
         }
     }
 
-    @PreAuthorize("hasAnyRole('ADMIN', 'BASIC', 'CA')")
+    @PreAuthorize("hasAnyRole('BASIC')")
     @GetMapping("/end-entity")
     public ResponseEntity<List<Certificate>> getMyEESertificates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
         User user = userService.findByEmail(userPrincipal.getEmail())

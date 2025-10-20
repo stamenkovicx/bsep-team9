@@ -194,7 +194,7 @@ export class CreateEeCsrComponent implements OnInit {
   }
 
   onBackToList(): void {
-    this.router.navigate(['/certificates/view']); 
+    this.router.navigate(['/home']); 
   }
 
   extractCommonName(subject: string): string {
