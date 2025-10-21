@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.Comparator;
 
 @Service
 public class CertificateService {
@@ -364,6 +365,38 @@ public class CertificateService {
 
         // 3. Sačuvaj model u bazi
         return certificateRepository.save(certificate);
+    }
+
+
+    // Pronalazi validan End Entity sertifikat za korisnika
+    public Optional<Certificate> findValidEndEntityCertificateByOwner(User owner) {
+        List<Certificate> userCertificates = findByOwner(owner);
+
+        return userCertificates.stream()
+                .filter(cert -> cert.getType() == CertificateType.END_ENTITY)
+                .filter(cert -> cert.getStatus() == CertificateStatus.VALID)
+                .filter(cert -> {
+                    Date now = new Date();
+                    return cert.getValidFrom().before(now) && cert.getValidTo().after(now);
+                })
+                .max(Comparator.comparing(Certificate::getValidTo)); // Vrati onaj sa najdužim važenjem
+    }
+
+    // Pronalazi javni ključ korisnika iz njegovog validnog EE sertifikata
+    public Optional<String> findUserPublicKey(User user) {
+        return findValidEndEntityCertificateByOwner(user)
+                .map(Certificate::getPublicKey);
+    }
+
+    // Proverava da li korisnik ima validan EE sertifikat za korišćenje password managera
+    public boolean canUserUsePasswordManager(User user) {
+        return findValidEndEntityCertificateByOwner(user).isPresent();
+    }
+
+    // Pronalazi sertifikat (i javni ključ) korisnika po email-u
+    public Optional<String> findPublicKeyByUserEmail(String email) {
+        // Ova metoda će biti korišćena za deljenje lozinki
+        return Optional.empty(); // Privremeno
     }
 
 
