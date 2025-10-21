@@ -43,6 +43,11 @@ public class AuditLogService {
     public static final String EVENT_2FA_DISABLED = "2FA_DISABLED";
     public static final String EVENT_USER_CREATED = "USER_CREATED";
     public static final String EVENT_ACCESS_DENIED = "ACCESS_DENIED";
+    public static final String EVENT_TEMPLATE_CREATED = "TEMPLATE_CREATED";
+    public static final String EVENT_TEMPLATE_UPDATED = "TEMPLATE_UPDATED";
+    public static final String EVENT_TEMPLATE_DELETED = "TEMPLATE_DELETED";
+    public static final String EVENT_TEMPLATE_USED = "TEMPLATE_USED";
+    public static final String EVENT_TEMPLATE_ACCESSED = "TEMPLATE_ACCESSED";
 
     public void logSecurityEvent(String eventType, String description, boolean success,
                                  String additionalData, HttpServletRequest request) {
