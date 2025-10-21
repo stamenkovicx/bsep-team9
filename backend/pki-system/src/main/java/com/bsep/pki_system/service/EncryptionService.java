@@ -11,7 +11,7 @@ import javax.crypto.Cipher;
 public class EncryptionService {
 
     private static final String RSA_ALGORITHM = "RSA";
-    private static final String RSA_TRANSFORMATION = "RSA/ECB/OAEPWithSHA-256AndMGF1Padding";
+    private static final String RSA_TRANSFORMATION = "RSA/ECB/PKCS1Padding";
 
     // Enkriptuj podatke koristeći javni ključ (PEM format)
     public String encryptWithPublicKey(String data, String publicKeyPem) {

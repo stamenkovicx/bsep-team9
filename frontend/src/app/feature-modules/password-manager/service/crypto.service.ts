@@ -1,146 +1,55 @@
 import { Injectable } from '@angular/core';
 
+import * as forge from 'node-forge';
+
 @Injectable({
   providedIn: 'root'
 })
 export class CryptoService {
 
-  // Dekriptuj podatke koristeći privatni ključ
   async decryptWithPrivateKey(privateKeyPem: string, encryptedDataBase64: string): Promise<string> {
     try {
-      console.log('Starting decryption...');
+      console.log('Starting decryption with PKCS1Padding...');
       
-      // Import privatnog ključa
-      const privateKey = await this.importPrivateKey(privateKeyPem);
-      console.log('Private key imported');
+      // Parsiraj privatni ključ
+      const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+      console.log('Private key parsed successfully');
       
-      // Konvertuj Base64 u ArrayBuffer
-      const encryptedData = this.base64ToArrayBuffer(encryptedDataBase64);
-      console.log('Data converted to ArrayBuffer');
+      // DEBUG INFO
+      console.log('=== DEBUG INFO ===');
+      console.log('Encrypted data length:', encryptedDataBase64.length);
+      console.log('Private key size:', privateKey.n.bitLength());
+      console.log('==================');
       
-      // Dekriptuj
-      const decrypted = await window.crypto.subtle.decrypt(
-        {
-          name: 'RSA-OAEP'
-        },
-        privateKey,
-        encryptedData
-      );
-      console.log('Data decrypted');
+      // Dekriptuj sa PKCS1Padding (NEMA više OAEP parametara)
+      const encryptedData = forge.util.decode64(encryptedDataBase64);
+      const decrypted = privateKey.decrypt(encryptedData); // BEZ parametara = PKCS1Padding
       
-      // Konvertuj u string
-      const result = new TextDecoder().decode(decrypted);
-      console.log('Decryption successful');
-      return result;
+      console.log('Decryption successful with PKCS1Padding');
+      return decrypted;
       
     } catch (error) {
-      console.error('Decryption failed:', error);
-      throw new Error('Failed to decrypt data: ' + error);
-    }
-  }
-
-  private async importPrivateKey(pem: string): Promise<CryptoKey> {
-    try {
-      console.log('Raw PEM:', pem.substring(0, 100) + '...');
+      console.error('PKCS1Padding decryption failed:', error);
       
-      let pemContents: string;
-
-      // Proveri format
-      if (pem.includes('BEGIN RSA PRIVATE KEY')) {
-        console.log('Detected PKCS#1 format - converting to PKCS#8');
-        // PKCS#1 format - konvertuj u PKCS#8
-        pemContents = this.convertPkcs1ToPkcs8(pem);
-      } else if (pem.includes('BEGIN PRIVATE KEY')) {
-        console.log('Detected PKCS#8 format');
-        // PKCS#8 format - koristi direktno
-        pemContents = pem
-          .replace(/-----BEGIN PRIVATE KEY-----/g, '')
-          .replace(/-----END PRIVATE KEY-----/g, '')
-          .replace(/\s/g, '');
-      } else {
-        throw new Error('Unsupported key format. Must be PKCS#1 or PKCS#8.');
-      }
-
-      console.log('Cleaned PEM length:', pemContents.length);
-      
-      // Base64 to ArrayBuffer
-      const binaryDer = this.base64ToArrayBuffer(pemContents);
-      console.log('Binary DER length:', binaryDer.byteLength);
-      
-      // Import ključa - probaj oba formata
-      let key: CryptoKey;
+      // Probaj sa eksplicitnim PKCS1
       try {
-        // Prvo probaj PKCS#8
-        key = await window.crypto.subtle.importKey(
-          'pkcs8',
-          binaryDer,
-          {
-            name: 'RSA-OAEP',
-            hash: { name: 'SHA-256' }
-          },
-          true,
-          ['decrypt']
-        );
-        console.log('✅ Private key imported successfully as PKCS#8');
-      } catch (pkcs8Error) {
-        console.log('PKCS#8 failed, trying PKCS#1...');
-        // Probaj PKCS#1 kao fallback
-        key = await window.crypto.subtle.importKey(
-          'pkcs8', // I dalje PKCS#8, ali sa konvertovanim sadržajem
-          binaryDer,
-          {
-            name: 'RSA-OAEP',
-            hash: { name: 'SHA-256' }
-          },
-          true,
-          ['decrypt']
-        );
-        console.log('✅ Private key imported successfully after conversion');
+        console.log('Trying explicit PKCS1...');
+        const privateKey = forge.pki.privateKeyFromPem(privateKeyPem);
+        const encryptedData = forge.util.decode64(encryptedDataBase64);
+        
+        const decrypted = privateKey.decrypt(encryptedData, 'RSAES-PKCS1-V1_5');
+        console.log('Decryption successful with explicit PKCS1');
+        return decrypted;
+        
+      } catch (error2) {
+        console.error('All PKCS1 attempts failed:', error2);
+        throw new Error('Failed to decrypt data with PKCS1Padding');
       }
-      
-      return key;
-      
-    } catch (error) {
-      console.error('❌ Key import error:', error);
-      throw new Error('Invalid private key format. Error: ' + error);
     }
   }
 
-  private convertPkcs1ToPkcs8(pkcs1Pem: string): string {
-    try {
-      console.log('Converting PKCS#1 to PKCS#8...');
-      
-      // Čisti PKCS#1 PEM
-      const pkcs1Contents = pkcs1Pem
-        .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
-        .replace(/-----END RSA PRIVATE KEY-----/g, '')
-        .replace(/\s/g, '');
-
-      // Za sada vraćamo isti sadržaj - Web Crypto API možda može da ga parsira
-      console.log('Returning PKCS#1 content as-is (let Web Crypto try)');
-      return pkcs1Contents;
-      
-    } catch (error) {
-      console.error('PKCS#1 conversion failed:', error);
-      // Vrati original ako konverzija ne uspe
-      return pkcs1Pem
-        .replace(/-----BEGIN RSA PRIVATE KEY-----/g, '')
-        .replace(/-----END RSA PRIVATE KEY-----/g, '')
-        .replace(/\s/g, '');
-    }
-  }
-
-  private base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-  }
-
-  // Proveri da li Web Crypto API podržava RSA-OAEP
+  // Ostale metode mogu ostati iste ili ih možeš obrisati
   isRSASupported(): boolean {
-    return !!window.crypto && !!window.crypto.subtle;
+    return true; // node-forge uvek podržava RSA
   }
 }
