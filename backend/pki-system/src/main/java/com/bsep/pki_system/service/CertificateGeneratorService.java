@@ -274,6 +274,7 @@ public class CertificateGeneratorService {
         return chain.toArray(new java.security.cert.Certificate[0]);
     }
 
+    @Transactional(rollbackFor = Exception.class)
     public Certificate generateEECertificateFromCsr(String csrPem, Date validFrom, Date validTo,
                                                     Certificate issuerCertificate, User owner) throws Exception {
 
@@ -318,10 +319,10 @@ public class CertificateGeneratorService {
         certBuilder.addExtension(Extension.basicConstraints, true, new BasicConstraints(false));
         org.bouncycastle.asn1.pkcs.Attribute[] pkcsAttributes = csr.getAttributes();
 
-        // Key Usage: Postavlja se iz CSR-a, ili default za EE
-        // Standardni CSR-ovi sadrže atribute sa traženim ekstenzijama
+        // Key Usage i SANs
         addKeyUsageFromCsrAttributes(certBuilder, pkcsAttributes);
         addSansFromCsrAttributes(certBuilder, pkcsAttributes);
+
         // CRL Distribution Point
         addCRLDistributionPoint(certBuilder, issuerCertificate.getSerialNumber());
 
@@ -331,7 +332,7 @@ public class CertificateGeneratorService {
         X509CertificateHolder certHolder = certBuilder.build(signer);
         X509Certificate x509Cert = new JcaX509CertificateConverter().getCertificate(certHolder);
 
-        // 7. Kreiranje modela za bazu
+        // 7. Kreiranje modela za bazu (Bez PEM podataka)
         Certificate certificate = new Certificate();
         certificate.setSerialNumber(serialNumber.toString());
         certificate.setSubject(subject.toString());
@@ -342,8 +343,6 @@ public class CertificateGeneratorService {
         certificate.setPublicKey(java.util.Base64.getEncoder().encodeToString(subjectPublicKey.getEncoded()));
         certificate.setIsCA(false);
         certificate.setBasicConstraints("CA:FALSE");
-        // Napomena: keyUsage, extendedKeyUsage se postavljaju parsiranjem ekstenzija iz certHolder-a
-        // Radi jednostavnosti, ovde ih ručno postavljamo kao String, idealno bi bilo parsirati iz certHolder.
         certificate.setOwner(owner);
         certificate.setIssuerCertificate(issuerCertificate);
         certificate.setKeyUsage("digitalSignature, keyEncipherment"); // Default EE KeyUsage
@@ -352,7 +351,11 @@ public class CertificateGeneratorService {
         String alias = "EE_" + serialNumber.toString();
         keystoreService.saveTrustedCertificate(alias, x509Cert);
 
-        return certificate;
+        // 9. Čuvanje modela sertifikata u bazi SA PEM sadržajem.
+        // OVA METODA ĆE DODATI PEM PODATKE U 'certificate' OBJEKAT I SAČUVATI GA.
+        Certificate savedCertificate = certificateService.saveEndEntityCertificate(certificate, x509Cert);
+
+        return savedCertificate;
     }
 
     // U CertificateGeneratorService.java, unutar generateEECertificateFromCsr ili parseCsr metode
@@ -407,9 +410,34 @@ public class CertificateGeneratorService {
 
 
     private void addKeyUsageFromCsrAttributes(X509v3CertificateBuilder builder, org.bouncycastle.asn1.pkcs.Attribute[] attributes) throws Exception {
-        // ... Logika za pronalaženje KeyUsage ... (ovo je bio vaš originalni kod)
-        KeyUsage ku = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment);
-        builder.addExtension(Extension.keyUsage, true, ku);
+
+        KeyUsage requestedKeyUsage = null;
+
+        // 1. Prođi kroz sve atribute poslate u CSR-u
+        for (org.bouncycastle.asn1.pkcs.Attribute attr : attributes) {
+            // Traži OID za 'ExtensionRequest' (gde se čuvaju ekstenzije u CSR-u)
+            if (attr.getAttrType().equals(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest)) {
+                Extensions extensions = Extensions.getInstance(attr.getAttrValues().getObjectAt(0));
+
+                // 2. Unutar ekstenzija, traži 'Key Usage'
+                org.bouncycastle.asn1.x509.Extension kuExt = extensions.getExtension(Extension.keyUsage);
+
+                if (kuExt != null) {
+                    // Ako je Key Usage pronađen, parsiraj ga
+                    requestedKeyUsage = KeyUsage.getInstance(kuExt.getParsedValue());
+                    break; // Pronašli smo, možemo da prekinemo petlju
+                }
+            }
+        }
+
+        if (requestedKeyUsage != null) {
+            // 3. Koristi zatraženi Key Usage
+            builder.addExtension(Extension.keyUsage, true, requestedKeyUsage);
+        } else {
+            // 4. Ako Key Usage nije zatražen u CSR-u, koristi podrazumevane EE vrednosti
+            KeyUsage defaultKu = new KeyUsage(KeyUsage.digitalSignature | KeyUsage.keyEncipherment);
+            builder.addExtension(Extension.keyUsage, true, defaultKu);
+        }
     }
 
     private void addSansFromCsrAttributes(X509v3CertificateBuilder builder, org.bouncycastle.asn1.pkcs.Attribute[] attributes) throws Exception {
