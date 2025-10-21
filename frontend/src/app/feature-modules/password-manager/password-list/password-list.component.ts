@@ -92,7 +92,7 @@ export class PasswordListComponent implements OnInit {
   }
 
   onSharePassword(password: PasswordEntryDTO): void {
-    this.router.navigate(['/password-manager/share', password.id]);
+    this.router.navigate(['/password-manager/passwords/share', password.id]);
   }
 
   onDeletePassword(passwordId: number): void {
