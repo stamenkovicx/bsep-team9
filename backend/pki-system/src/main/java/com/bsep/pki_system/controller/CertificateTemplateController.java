@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.bsep.pki_system.audit.AuditLogService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/templates")
@@ -23,11 +25,14 @@ public class CertificateTemplateController {
 
     private final CertificateTemplateService templateService;
     private final UserService userService;
+    private final AuditLogService auditLogService;
 
     public CertificateTemplateController(CertificateTemplateService templateService,
-                                         UserService userService) {
+                                         UserService userService,
+                                         AuditLogService auditLogService) {
         this.templateService = templateService;
         this.userService = userService;
+        this.auditLogService = auditLogService;
     }
 
     // SAMO CA korisnik može da kreira šablone
@@ -35,7 +40,8 @@ public class CertificateTemplateController {
     @PostMapping
     public ResponseEntity<?> createTemplate(
             @Valid @RequestBody CreateTemplateDTO templateDTO,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
         try {
             // Pronalazimo kompletan User objekat da bismo znali njegovu organizaciju
             User user = userService.findByEmail(userPrincipal.getEmail())
@@ -44,13 +50,30 @@ public class CertificateTemplateController {
             var template = templateService.createTemplate(templateDTO, user);
             var responseDTO = convertToResponseDTO(template);
 
+            // AUDIT LOG: Šablon kreiran
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_CREATED,
+                    "Certificate template created", true,
+                    "templateId=" + template.getId() + ", name=" + template.getName() +
+                            ", caIssuer=" + template.getCaIssuer().getSubject(), httpRequest);
+
+
             return ResponseEntity.ok(Map.of(
                     "message", "Template created successfully",
                     "template", responseDTO
             ));
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neuspešno kreiranje šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_CREATED,
+                    "Template creation failed", false,
+                    "error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri kreiranju šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_CREATED,
+                    "Template creation error", false,
+                    "error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of("message", "Error creating template: " + e.getMessage()));
         }
     }
@@ -89,15 +112,27 @@ public class CertificateTemplateController {
     @GetMapping("/{templateId}")
     public ResponseEntity<?> getTemplate(
             @PathVariable Long templateId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
             var template = templateService.findById(templateId, user);
             var responseDTO = convertToResponseDTO(template);
+
+            // AUDIT LOG: Pristup šablonu
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_ACCESSED,
+                    "Certificate template accessed", true,
+                    "templateId=" + templateId + ", name=" + template.getName(), httpRequest);
+
             return ResponseEntity.ok(responseDTO);
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neovlašćen pristup šablonu
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_ACCESSED,
+                    "Unauthorized template access", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
@@ -107,16 +142,36 @@ public class CertificateTemplateController {
     @DeleteMapping("/{templateId}")
     public ResponseEntity<?> deleteTemplate(
             @PathVariable Long templateId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
+            // Dohvati šablon pre brisanja za audit log
+            var template = templateService.findById(templateId, user);
+
             templateService.deleteTemplate(templateId, user);
+
+            // AUDIT LOG: Šablon obrisan
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_DELETED,
+                    "Certificate template deleted", true,
+                    "templateId=" + templateId + ", name=" + template.getName(), httpRequest);
+
             return ResponseEntity.ok(Map.of("message", "Template deleted successfully"));
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neuspešno brisanje šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_DELETED,
+                    "Template deletion failed", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri brisanju šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_DELETED,
+                    "Template deletion error", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of("message", "Error deleting template: " + e.getMessage()));
         }
     }
@@ -149,13 +204,20 @@ public class CertificateTemplateController {
     @PostMapping("/{templateId}/use")
     public ResponseEntity<?> useTemplate(
             @PathVariable Long templateId,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
 
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
             CertificateTemplate template = templateService.findById(templateId, user);
+
+            // AUDIT LOG: Šablon korišćen
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_USED,
+                    "Certificate template used for certificate creation", true,
+                    "templateId=" + templateId + ", name=" + template.getName(), httpRequest);
+
 
             // Vrati podatke šablona koji će se koristiti za formu sertifikata
             Map<String, Object> response = new HashMap<>();
@@ -165,8 +227,17 @@ public class CertificateTemplateController {
             return ResponseEntity.ok(response);
 
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neuspešno korišćenje šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_USED,
+                    "Template usage failed", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        } catch (Exception e) {
+        } catch (Exception e) {// AUDIT LOG: Greška pri korišćenju šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_USED,
+                    "Template usage error", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of("message", "Error using template: " + e.getMessage()));
         }
     }
@@ -177,7 +248,8 @@ public class CertificateTemplateController {
     public ResponseEntity<?> updateTemplate(
             @PathVariable Long templateId,
             @Valid @RequestBody CreateTemplateDTO templateDTO,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
@@ -186,13 +258,28 @@ public class CertificateTemplateController {
             var updatedTemplate = templateService.updateTemplate(templateId, templateDTO, user);
             var responseDTO = convertToResponseDTO(updatedTemplate);
 
+            // AUDIT LOG: Šablon ažuriran
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_UPDATED,
+                    "Certificate template updated", true,
+                    "templateId=" + templateId + ", name=" + updatedTemplate.getName(), httpRequest);
+
             return ResponseEntity.ok(Map.of(
                     "message", "Template updated successfully",
                     "template", responseDTO
             ));
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neuspešno ažuriranje šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_UPDATED,
+                    "Template update failed", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri ažuriranju šablona
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_TEMPLATE_UPDATED,
+                    "Template update error", false,
+                    "templateId=" + templateId + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of("message", "Error updating template: " + e.getMessage()));
         }
     }

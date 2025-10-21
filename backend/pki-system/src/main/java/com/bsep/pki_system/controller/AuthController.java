@@ -19,6 +19,9 @@ import com.bsep.pki_system.service.TwoFactorService;
 
 import java.util.Map;
 import java.util.Optional;
+import com.bsep.pki_system.audit.AuditLogService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/auth")
@@ -30,25 +33,33 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final RecaptchaService recaptchaService;
     private final TwoFactorService twoFactorService;
+    private final AuditLogService auditLogService;
 
     public AuthController(UserService userService,
                           JwtService jwtService,
                           PasswordValidator passwordValidator,
                           EmailVerificationService emailVerificationService,
                           RecaptchaService recaptchaService,
-                          TwoFactorService twoFactorService) {
+                          TwoFactorService twoFactorService,
+                          AuditLogService auditLogService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.passwordValidator = passwordValidator;
         this.emailVerificationService = emailVerificationService;
         this.recaptchaService = recaptchaService;
         this.twoFactorService = twoFactorService;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO request) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterDTO request, HttpServletRequest httpRequest) {
         // Provera da li email već postoji
         if (userService.existsByEmail(request.getEmail())) {
+            // AUDIT LOG: Email već postoji
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_REGISTRATION,
+                    "Email already in use", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of(
                     "message", "Email is already in use"
             ));
@@ -56,6 +67,11 @@ public class AuthController {
 
         // Provera da li se lozinke poklapaju
         if (!request.getPassword().equals(request.getConfirmPassword())) {
+            // AUDIT LOG: Lozinke se ne poklapaju
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_REGISTRATION,
+                    "Passwords do not match", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of(
                     "message", "Passwords do not match"
             ));
@@ -63,6 +79,11 @@ public class AuthController {
 
         // Validacija jačine lozinke
         if (!passwordValidator.isValid(request.getPassword())) {
+            // AUDIT LOG: Slaba lozinka
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_REGISTRATION,
+                    "Weak password", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of(
                     "message", passwordValidator.getValidationMessage()
             ));
@@ -89,9 +110,22 @@ public class AuthController {
         // Slanje verification email-a
         try {
             emailVerificationService.sendVerificationEmail(savedUser, token);
+
+            // AUDIT LOG: Uspešna registracija
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_REGISTRATION,
+                    "User registered successfully", true,
+                    "userId=" + savedUser.getId() + ", email=" + savedUser.getEmail() + ", name=" + savedUser.getName(),
+                    httpRequest);
+
             return ResponseEntity.ok(Map.of(
                     "message", "Registration successful! Please check your email to verify your account."
-            ));        } catch (Exception e) {
+            ));
+        } catch (Exception e) {
+            // AUDIT LOG: Greška pri slanju emaila
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_REGISTRATION,
+                    "Email sending failed", false,
+                    "userId=" + savedUser.getId() + ", email=" + savedUser.getEmail(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of(
                     "message", "User registered but failed to send verification email. Please contact support."
             ));        }
@@ -127,13 +161,18 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginWith2FADTO request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginWith2FADTO request, HttpServletRequest httpRequest) {
 
         // Ako je twoFactorCode poslat, to je drugi korak prijave
         // Preskacemo reCAPTCHA proveru jer je stari token istekao
         boolean isSecondStep = request.getTwoFactorCode() != null && !request.getTwoFactorCode().isEmpty();
 
         if (!isSecondStep && !recaptchaService.verify(request.getRecaptchaToken())) {
+            // AUDIT LOG: Neuspešna reCAPTCHA
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                    "reCAPTCHA verification failed", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body("reCAPTCHA verification failed");
         }
 
@@ -141,12 +180,23 @@ public class AuthController {
         User user = userService.login(request.getEmail(), request.getPassword());
 
         if (user == null) {
+            // AUDIT LOG: Neuspešna prijava - pogrešni kredencijali
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                    "Invalid credentials", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
 
         // Provjera da li korisnik mora da promijeni lozinku
         if (user.getPasswordChangeRequired() != null && user.getPasswordChangeRequired()) {
             String temporaryToken = jwtService.generateTemporaryToken(user);
+
+            // AUDIT LOG: Potrebna promena lozinke
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                    "Password change required", true,
+                    "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
             return ResponseEntity.status(401).body(Map.of(
                     "message", "Password change required",
                     "passwordChangeRequired", true,
@@ -156,6 +206,11 @@ public class AuthController {
 
         // Provera verifikacije naloga
         if (!user.getEnabled()) {
+            // AUDIT LOG: Nalog nije verifikovan
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                    "Account not verified", false,
+                    "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body("Please verify your email before logging in");
         }
 
@@ -165,11 +220,21 @@ public class AuthController {
 
             // Provera sigurnosti: ako je 2FA enabled, kljuc MORA postojati
             if (secret == null) {
+                // AUDIT LOG: Greška u 2FA konfiguraciji
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                        "2FA configuration error", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.status(500).body(Map.of("message", "Internal security error (Missing 2FA key)."));
             }
 
             // A. Ako 2FA kod NIJE poslat (prvi korak prijavljivanja)
             if (!isSecondStep) {
+                // AUDIT LOG: Zahtevan 2FA kod
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                        "2FA code required", true,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 // Signaliziramo frontendu da je potrebna 2FA provera
                 return ResponseEntity.status(401).body(Map.of(
                         "message", "2FA code required.",
@@ -183,15 +248,32 @@ public class AuthController {
 
                 // Provera koda koristeći TwoFactorService
                 if (!twoFactorService.isCodeValid(secret, code)) {
+                    // AUDIT LOG: Pogrešan 2FA kod
+                    auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                            "Invalid 2FA code", false,
+                            "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                     return ResponseEntity.status(401).body(Map.of("message", "Invalid 2FA code."));
                 }
             } catch (NumberFormatException e) {
+                // AUDIT LOG: Nevalidan format 2FA koda
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                        "Invalid 2FA code format", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.status(401).body(Map.of("message", "Invalid 2FA code format. Only numbers allowed."));
             }
         }
 
         // 3. USPESNA PRIJAVA (Generisanje tokena)
         String token = jwtService.generateToken(user);
+
+        // AUDIT LOG: Uspešna prijava - KORISTIMO USER OBJEKAT UMESTO UserPrincipal
+        auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                "User logged in successfully", true,
+                "userId=" + user.getId() + ", email=" + user.getEmail() + ", role=" + user.getRole(),
+                httpRequest, user);
+
         return ResponseEntity.ok(new LoginResponseDTO(token, user.getId(), user.getEmail(), user.getRole().toString(),user.getIs2faEnabled()));
     }
 
@@ -226,7 +308,8 @@ public class AuthController {
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/2fa/setup")
-    public ResponseEntity<?> setup2FA(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<?> setup2FA(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                      HttpServletRequest httpRequest) {
 
         try {
             if (userPrincipal == null) {
@@ -237,14 +320,34 @@ public class AuthController {
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
             if (user.getIs2faEnabled() != null && user.getIs2faEnabled()) {
+                // AUDIT LOG: 2FA već aktiviran
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                        "2FA already enabled", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.badRequest().body(Map.of("message", "2FA is already enabled."));
             }
 
             String qrCodeUrl = twoFactorService.generateSecretAndQr(user);
 
+            // AUDIT LOG: 2FA setup iniciran
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                    "2FA setup initiated", true,
+                    "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
             return ResponseEntity.ok(Map.of("qrCodeUrl", qrCodeUrl));
 
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri setupu 2FA
+            if (userPrincipal != null) {
+                User user = userService.findByEmail(userPrincipal.getEmail()).orElse(null);
+                if (user != null) {
+                    auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                            "2FA setup error", false,
+                            "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+                }
+            }
+
             e.printStackTrace(); // ← Ovo će prikazati ceo stack trace
             return ResponseEntity.status(500).body(Map.of("message", "Error setting up 2FA: " + e.getMessage()));
         }
@@ -252,13 +355,20 @@ public class AuthController {
 
     @PreAuthorize("isAuthenticated()")
     @PostMapping("/2fa/verify")
-    public ResponseEntity<?> verify2FA(@RequestBody TwoFACodeDTO dto, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<?> verify2FA(@RequestBody TwoFACodeDTO dto,
+                                       @AuthenticationPrincipal UserPrincipal userPrincipal,
+                                       HttpServletRequest httpRequest) {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
             // Provera da li postoji privremeni kljuc i da 2FA nije već aktiviran
             if (user.getTwoFactorSecret() == null || user.getIs2faEnabled()) {
+                // AUDIT LOG: 2FA već aktiviran ili nije iniciran setup
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                        "2FA already enabled or setup not initiated", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.badRequest().body(Map.of("message", "2FA setup was not initiated or is already complete."));
             }
 
@@ -269,14 +379,43 @@ public class AuthController {
             if (twoFactorService.isCodeValid(user.getTwoFactorSecret(), code)) {
                 // Ako je kod validan, aktiviraj 2FA
                 twoFactorService.confirm2faActivation(user);
+
+                // AUDIT LOG: Uspešno aktiviran 2FA
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                        "2FA enabled successfully", true,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.ok(Map.of("message", "2FA successfully enabled!"));
             } else {
+                // AUDIT LOG: Pogrešan 2FA kod
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                        "Invalid 2FA code", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.badRequest().body(Map.of("message", "Invalid 2FA code. Please try again."));
             }
 
         } catch (NumberFormatException e) {
+            // AUDIT LOG: Nevalidan format koda
+            if (userPrincipal != null) {
+                User user = userService.findByEmail(userPrincipal.getEmail()).orElse(null);
+                if (user != null) {
+                    auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                            "Invalid 2FA code format", false,
+                            "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+                }
+            }
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid code format."));
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri verifikaciji 2FA
+            if (userPrincipal != null) {
+                User user = userService.findByEmail(userPrincipal.getEmail()).orElse(null);
+                if (user != null) {
+                    auditLogService.logSecurityEvent(AuditLogService.EVENT_2FA_ENABLED,
+                            "2FA verification error", false,
+                            "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+                }
+            }
             return ResponseEntity.status(500).body(Map.of("message", "Error verifying 2FA: " + e.getMessage()));
         }
     }
