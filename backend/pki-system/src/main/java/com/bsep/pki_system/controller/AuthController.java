@@ -19,6 +19,9 @@ import com.bsep.pki_system.service.TwoFactorService;
 
 import java.util.Map;
 import java.util.Optional;
+import com.bsep.pki_system.audit.AuditLogService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/auth")
@@ -30,19 +33,22 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final RecaptchaService recaptchaService;
     private final TwoFactorService twoFactorService;
+    private final AuditLogService auditLogService;
 
     public AuthController(UserService userService,
                           JwtService jwtService,
                           PasswordValidator passwordValidator,
                           EmailVerificationService emailVerificationService,
                           RecaptchaService recaptchaService,
-                          TwoFactorService twoFactorService) {
+                          TwoFactorService twoFactorService,
+                          AuditLogService auditLogService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.passwordValidator = passwordValidator;
         this.emailVerificationService = emailVerificationService;
         this.recaptchaService = recaptchaService;
         this.twoFactorService = twoFactorService;
+        this.auditLogService = auditLogService;
     }
 
     @PostMapping("/register")
@@ -127,13 +133,18 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginWith2FADTO request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginWith2FADTO request, HttpServletRequest httpRequest) {
 
         // Ako je twoFactorCode poslat, to je drugi korak prijave
         // Preskacemo reCAPTCHA proveru jer je stari token istekao
         boolean isSecondStep = request.getTwoFactorCode() != null && !request.getTwoFactorCode().isEmpty();
 
         if (!isSecondStep && !recaptchaService.verify(request.getRecaptchaToken())) {
+            // AUDIT LOG: Neuspešna reCAPTCHA
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                    "reCAPTCHA verification failed", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body("reCAPTCHA verification failed");
         }
 
@@ -141,12 +152,23 @@ public class AuthController {
         User user = userService.login(request.getEmail(), request.getPassword());
 
         if (user == null) {
+            // AUDIT LOG: Neuspešna prijava - pogrešni kredencijali
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                    "Invalid credentials", false,
+                    "email=" + request.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body("Invalid credentials");
         }
 
         // Provjera da li korisnik mora da promijeni lozinku
         if (user.getPasswordChangeRequired() != null && user.getPasswordChangeRequired()) {
             String temporaryToken = jwtService.generateTemporaryToken(user);
+
+            // AUDIT LOG: Potrebna promena lozinke
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                    "Password change required", true,
+                    "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
             return ResponseEntity.status(401).body(Map.of(
                     "message", "Password change required",
                     "passwordChangeRequired", true,
@@ -156,6 +178,11 @@ public class AuthController {
 
         // Provera verifikacije naloga
         if (!user.getEnabled()) {
+            // AUDIT LOG: Nalog nije verifikovan
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                    "Account not verified", false,
+                    "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
             return ResponseEntity.badRequest().body("Please verify your email before logging in");
         }
 
@@ -165,11 +192,21 @@ public class AuthController {
 
             // Provera sigurnosti: ako je 2FA enabled, kljuc MORA postojati
             if (secret == null) {
+                // AUDIT LOG: Greška u 2FA konfiguraciji
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                        "2FA configuration error", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.status(500).body(Map.of("message", "Internal security error (Missing 2FA key)."));
             }
 
             // A. Ako 2FA kod NIJE poslat (prvi korak prijavljivanja)
             if (!isSecondStep) {
+                // AUDIT LOG: Zahtevan 2FA kod
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                        "2FA code required", true,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 // Signaliziramo frontendu da je potrebna 2FA provera
                 return ResponseEntity.status(401).body(Map.of(
                         "message", "2FA code required.",
@@ -183,15 +220,32 @@ public class AuthController {
 
                 // Provera koda koristeći TwoFactorService
                 if (!twoFactorService.isCodeValid(secret, code)) {
+                    // AUDIT LOG: Pogrešan 2FA kod
+                    auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                            "Invalid 2FA code", false,
+                            "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                     return ResponseEntity.status(401).body(Map.of("message", "Invalid 2FA code."));
                 }
             } catch (NumberFormatException e) {
+                // AUDIT LOG: Nevalidan format 2FA koda
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN_FAILED,
+                        "Invalid 2FA code format", false,
+                        "userId=" + user.getId() + ", email=" + user.getEmail(), httpRequest);
+
                 return ResponseEntity.status(401).body(Map.of("message", "Invalid 2FA code format. Only numbers allowed."));
             }
         }
 
         // 3. USPESNA PRIJAVA (Generisanje tokena)
         String token = jwtService.generateToken(user);
+
+        // AUDIT LOG: Uspešna prijava - KORISTIMO USER OBJEKAT UMESTO UserPrincipal
+        auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                "User logged in successfully", true,
+                "userId=" + user.getId() + ", email=" + user.getEmail() + ", role=" + user.getRole(),
+                httpRequest, user);
+
         return ResponseEntity.ok(new LoginResponseDTO(token, user.getId(), user.getEmail(), user.getRole().toString(),user.getIs2faEnabled()));
     }
 

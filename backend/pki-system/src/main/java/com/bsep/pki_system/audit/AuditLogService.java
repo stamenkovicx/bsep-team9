@@ -1,6 +1,7 @@
 package com.bsep.pki_system.audit;
 
 import com.bsep.pki_system.jwt.UserPrincipal;
+import com.bsep.pki_system.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -60,14 +61,63 @@ public class AuditLogService {
     }
 
     public void logSecurityEvent(String eventType, String description, boolean success,
-                                 String additionalData, HttpServletRequest request, String errorMessage) {
-        UserPrincipal user = getCurrentUser();
+                                 String additionalData, HttpServletRequest request, User user) {
 
-        String logMessage = buildLogMessage(eventType, description, user, additionalData, success, errorMessage);
-        securityLogger.error(logMessage);
+        String logMessage = buildLogMessage(eventType, description, user != null ?
+                        new UserPrincipal(user.getId(), user.getEmail(), user.getRole()) : null,
+                additionalData, success, null);
 
-        // Čuvanje u bazi
-        saveToDatabase(eventType, description, user, additionalData, request, success, errorMessage);
+        if (success) {
+            securityLogger.info(logMessage);
+        } else {
+            securityLogger.warn(logMessage);
+        }
+
+        // Čuvanje u bazi - KORISTIMO User OBJEKAT
+        saveToDatabaseWithUser(eventType, description, user, additionalData, request, success, null);
+    }
+
+    private void saveToDatabaseWithUser(String eventType, String description, User user,
+                                        String additionalData, HttpServletRequest request,
+                                        boolean success, String errorMessage) {
+        try {
+            AuditLog auditLog;
+
+            if (user != null) {
+                if (success) {
+                    auditLog = new AuditLog(eventType, description, user.getId(), user.getEmail(),
+                            user.getRole().name(), additionalData,
+                            getClientIp(request), getUserAgent(request));
+                } else {
+                    auditLog = new AuditLog(eventType, description, user.getId(), user.getEmail(),
+                            user.getRole().name(), additionalData,
+                            getClientIp(request), getUserAgent(request), errorMessage);
+                }
+            } else {
+                // Za anonimne događaje
+                Map<String, Object> anonymousData = new HashMap<>();
+                if (additionalData != null) {
+                    anonymousData.put("attemptedData", additionalData);
+                }
+
+                String anonymousAdditionalData = objectMapper.writeValueAsString(anonymousData);
+
+                if (success) {
+                    auditLog = new AuditLog(eventType, description, null, "ANONYMOUS",
+                            "ANONYMOUS", anonymousAdditionalData,
+                            getClientIp(request), getUserAgent(request));
+                } else {
+                    auditLog = new AuditLog(eventType, description, null, "ANONYMOUS",
+                            "ANONYMOUS", anonymousAdditionalData,
+                            getClientIp(request), getUserAgent(request), errorMessage);
+                }
+            }
+
+            auditLogRepository.save(auditLog);
+
+        } catch (Exception e) {
+            securityLogger.error("Failed to save audit log to database: {}", e.getMessage());
+        }
     }
 
     private String buildLogMessage(String eventType, String description, UserPrincipal user,
