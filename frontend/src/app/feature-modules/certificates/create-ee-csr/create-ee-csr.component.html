@@ -1,5 +1,23 @@
 <div class="certificate-form-container">
     <div class="certificate-card">
+        <!-- Template banner -->
+        <div *ngIf="hasTemplate()" class="template-banner">
+            <mat-icon>description</mat-icon>
+            <span>Using template: <strong>{{ getTemplateName() }}</strong></span>
+        </div>
+
+        <!-- Template CN validation warning -->
+        <div *ngIf="hasTemplate() && getTemplateCNPattern() && getTemplateCNPattern() !== '.*'" 
+             class="template-warning">
+            <mat-icon>info</mat-icon>
+            <span>Common Name must match pattern: <code>{{ getTemplateCNPattern() }}</code></span>
+        </div>
+
+        <button *ngIf="isCA()" mat-stroked-button color="accent" 
+          routerLink="/templates" class="template-header-button">
+        <mat-icon>description</mat-icon>
+        USE TEMPLATE
+        </button>
         
         <h2>Issue End-Entity Certificate via CSR</h2>
 
@@ -11,8 +29,17 @@
 
                 <div class="form-group">
                     <label for="commonName">Common Name (CN) *</label>
-                    <input type="text" id="commonName" formControlName="commonName" placeholder="e.g. www.mysite.com" required>
-                    <p *ngIf="csrForm.get('commonName')?.invalid && csrForm.get('commonName')?.touched" class="error-message">Common Name is required</p>
+                    <input type="text" id="commonName" formControlName="commonName" 
+                           placeholder="e.g. www.mysite.com" required
+                           [class.error]="csrForm.get('commonName')?.hasError('patternMismatch')">
+                    <!-- Template pattern error message -->
+                    <p *ngIf="csrForm.get('commonName')?.hasError('patternMismatch')" class="error-message template-error">
+                        ❌ Common Name doesn't match template pattern: {{ getTemplateCNPattern() }}
+                    </p>
+                    <p *ngIf="csrForm.get('commonName')?.invalid && csrForm.get('commonName')?.touched && !csrForm.get('commonName')?.hasError('patternMismatch')" 
+                       class="error-message">
+                        Common Name is required
+                    </p>
                 </div>
 
                 <div class="form-group">
@@ -104,12 +131,23 @@
                             {{ extractCommonName(issuer.subject) }} (Serial: {{ issuer.serialNumber }})
                         </option>
                     </select>
+                    <!-- Template info za issuer -->
+                    <div *ngIf="hasTemplate()" class="template-field-info">
+                        <mat-icon>lock</mat-icon>
+                        <span>Issuer is predefined by template</span>
+                    </div>
                     <p *ngIf="csrForm.get('issuerCertificateId')?.invalid && csrForm.get('issuerCertificateId')?.touched" class="error-message">Issuer CA is required</p>
                 </div>
 
                 <div class="form-group">
                     <label for="validTo">Valid Until *</label>
-                    <input type="date" id="validTo" formControlName="validTo" required>
+                    <input type="date" id="validTo" formControlName="validTo" required
+                           [disabled]="hasTemplate()"> <!-- Onemoguci ako ima template -->
+                    <!-- Template info za validity -->
+                    <div *ngIf="hasTemplate()" class="template-field-info">
+                        <mat-icon>lock</mat-icon>
+                        <span>Validity period is predefined by template (max {{ templateData?.maxValidityDays }} days)</span>
+                    </div>
                     <p *ngIf="csrForm.get('validTo')?.invalid && csrForm.get('validTo')?.touched" class="error-message">Valid To date is required</p>
                 </div>
             </fieldset>

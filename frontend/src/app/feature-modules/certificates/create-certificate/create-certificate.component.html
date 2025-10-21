@@ -1,5 +1,18 @@
 <div class="certificate-container">
   <mat-card class="certificate-card">
+    <!-- Template banner -->
+        <div *ngIf="hasTemplate()" class="template-banner">
+            <mat-icon>description</mat-icon>
+            <span>Using template: <strong>{{ getTemplateName() }}</strong></span>
+        </div>
+
+        <!-- Template CN validation warning -->
+        <div *ngIf="hasTemplate() && getTemplateCNPattern() && getTemplateCNPattern() !== '.*'" 
+             class="template-warning">
+            <mat-icon>info</mat-icon>
+            <span>Common Name must match pattern: <code>{{ getTemplateCNPattern() }}</code></span>
+        </div>
+
     <button *ngIf="isCA()" mat-stroked-button color="accent" 
           routerLink="/templates" class="template-header-button">
       <mat-icon>description</mat-icon>
@@ -61,6 +74,11 @@
             <mat-error *ngIf="certificateForm.get('issuerCertificateId')?.hasError('required')">
               You must select an issuer certificate.
             </mat-error>
+            <!-- Template info za issuer -->
+            <div *ngIf="hasTemplate()" class="template-field-info">
+              <mat-icon>lock</mat-icon>
+              <span>Issuer is predefined by template</span>
+            </div>
           </mat-form-field>
         </div>
       
@@ -77,8 +95,8 @@
           <mat-form-field appearance="outline">
             <mat-label>Common Name *</mat-label>
             <input matInput formControlName="subjectCommonName" placeholder="My Root CA">
-            <mat-error *ngIf="certificateForm.get('subjectCommonName')?.hasError('patternMismatch')">
-              Common Name doesn't match template pattern
+            <mat-error *ngIf="certificateForm.get('subjectCommonName')?.hasError('patternMismatch')" class="error-message template-error">
+              ❌ Common Name doesn't match template pattern: {{ getTemplateCNPattern() }}
             </mat-error>
             <mat-error *ngIf="certificateForm.get('subjectCommonName')?.hasError('required')">
               Common Name is required
@@ -155,6 +173,11 @@
             </mat-error>
           </mat-form-field>
         </div>
+                    <!-- Template info za validity -->
+            <div *ngIf="hasTemplate()" class="template-field-info">
+              <mat-icon>lock</mat-icon>
+              <span>Validity period is predefined by template (max {{ templateData?.maxValidityDays }} days)</span>
+            </div>
       </div>
 
       <!-- Certificate Extensions -->

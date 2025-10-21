@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { CertificateService } from '../certificate.service';
 import { CreateCertificateDTO } from '../models/create-certificate.dto';
 import { AuthService } from 'src/app/infrastructure/auth/auth.service';
@@ -24,20 +24,29 @@ export class CreateCertificateComponent implements OnInit {
   issuers: Certificate[] = [];      // Niz za čuvanje mogucih izdavaoca
   issuersLoading = false;           // Za prikaz spinner-a dok se ucitavaju
 
-  private templateData: any = null;
+  templateData: any = null;
+  templateName: String = '';
 
   constructor(
     private fb: FormBuilder,
     private certificateService: CertificateService,
     private certificateTemplatesService: CertificateTemplatesService,
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private route: ActivatedRoute
   ) {
     this.certificateForm = this.createForm();
   }
 
   ngOnInit(): void {
     this.loadCurrentUser();
+
+    this.route.queryParams.subscribe(params => {
+      if (params['templateId']) {
+        this.templateName = params['templateName'] || 'Unknown Template';
+        console.log('📋 Loading template from query params:', params['templateId']);
+      }
+    });
 
     const templateData = this.certificateTemplatesService.getCurrentTemplateData();
   
@@ -381,5 +390,18 @@ onDownloadCertificate(): void {
     // Koristi regularni izraz da pronađeš vrednost posle "CN="
     const cnMatch = subject.match(/CN=([^,]+)/);
     return cnMatch ? cnMatch[1] : 'Unnamed Certificate';
+  }
+
+    // Helper metode za template prikaz
+  getTemplateName(): String {
+    return this.templateName || this.templateData?.name || '';
+  }
+
+  hasTemplate(): boolean {
+    return !!this.templateData;
+  }
+
+  getTemplateCNPattern(): string {
+    return this.templateData?.commonNameRegex || '';
   }
 }
