@@ -8,7 +8,7 @@ import { PasswordEntryDTO, CreatePasswordEntryDTO, SharePasswordRequestDTO } fro
 })
 export class PasswordManagerService {
 
-  private apiUrl = `${environment.apiHost}/api/passwords`;
+  private apiUrl = `${environment.apiHost}api/passwords`;
 
   constructor(private http: HttpClient) { }
 
