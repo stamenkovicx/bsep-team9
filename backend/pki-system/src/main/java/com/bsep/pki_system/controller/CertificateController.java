@@ -26,6 +26,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import com.bsep.pki_system.audit.AuditLogService;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/certificates")
@@ -35,12 +37,17 @@ public class CertificateController {
     private final UserService userService;
     private final CertificateGeneratorService certificateGeneratorService;
     private final KeystoreService keystoreService;
+    private final AuditLogService auditLogService;
 
-    public CertificateController(CertificateService certificateService, UserService userService, CertificateGeneratorService certificateGeneratorService, KeystoreService keyStoreService) {
+    public CertificateController(CertificateService certificateService, UserService userService,
+                                 CertificateGeneratorService certificateGeneratorService,
+                                 KeystoreService keyStoreService,
+                                 AuditLogService auditLogService) {
         this.certificateService = certificateService;
         this.userService = userService;
         this.certificateGeneratorService = certificateGeneratorService;
         this.keystoreService = keyStoreService;
+        this.auditLogService = auditLogService;
     }
 
     // GET - Prikaz svih sertifikata (za admina)
@@ -91,7 +98,8 @@ public class CertificateController {
     public ResponseEntity<?> revokeCertificate(
             @PathVariable Long id,
             @RequestBody Map<String, String> request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
         try {
             // Dohvatamo kompletan User objekat iz baze
             User user = userService.findByEmail(userPrincipal.getEmail())
@@ -101,17 +109,34 @@ public class CertificateController {
                     .orElseThrow(() -> new RuntimeException("Certificate not found"));
 
             if (!canUserRevokeCertificate(certificate, user)) {
+                // AUDIT LOG: Neovlašćen pokušaj revokacije
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_REVOKED,
+                        "Unauthorized revocation attempt", false,
+                        "certificateId=" + id + ", userId=" + user.getId() + ", userRole=" + user.getRole(),
+                        httpRequest);
+
                 return ResponseEntity.status(403)
                         .body(Map.of("message", "Not authorized to revoke this certificate"));
             }
 
             String reason = request.get("reason");
             if (!isValidRevocationReason(reason)) {
+                // AUDIT LOG: Nevalidan razlog revokacije
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_REVOKED,
+                        "Invalid revocation reason", false,
+                        "certificateId=" + id + ", reason=" + reason, httpRequest);
+
                 return ResponseEntity.badRequest()
                         .body(Map.of("message", "Invalid revocation reason"));
             }
 
             certificateService.revokeCertificate(id, reason);
+
+            // AUDIT LOG: Uspešna revokacija sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_REVOKED,
+                    "Certificate revoked successfully", true,
+                    "certificateId=" + id + ", serialNumber=" + certificate.getSerialNumber() +
+                            ", reason=" + reason + ", revokedBy=" + user.getEmail(), httpRequest);
 
             // Ne vraćamo CRL URL ovde, klijent će ga sam formirati ako je potrebno
             return ResponseEntity.ok(Map.of(
@@ -119,6 +144,11 @@ public class CertificateController {
             ));
 
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri revokaciji
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_REVOKED,
+                    "Certificate revocation failed", false,
+                    "certificateId=" + id + ", error=" + e.getMessage(), httpRequest);
+
             e.printStackTrace();
             return ResponseEntity.status(500)
                     .body(Map.of("message", "Error revoking certificate: " + e.getMessage()));
@@ -161,13 +191,20 @@ public class CertificateController {
     // GET - Pojedinačni sertifikat
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
-    public ResponseEntity<Certificate> getCertificate(@PathVariable Long id,  @AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<Certificate> getCertificate(@PathVariable Long id,
+                                                      @AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                      HttpServletRequest httpRequest) {
         try {
             // Dohvatamo kompletan User objekat iz baze
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
             // Sada provera autorizacije koristi pravi User entitet
             if (!certificateService.canUserAccessCertificate(id, user)) {
+                // AUDIT LOG: Neovlašćen pristup sertifikatu
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                        "Unauthorized certificate access", false,
+                        "certificateId=" + id + ", userId=" + user.getId(), httpRequest);
+
                 return ResponseEntity.status(403).build();
             }
             return certificateService.findById(id)
@@ -183,7 +220,8 @@ public class CertificateController {
     @PostMapping("/root")
     public ResponseEntity<?> createRootCertificate(
             @Valid @RequestBody CreateCertificateDTO request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
 
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
@@ -208,6 +246,12 @@ public class CertificateController {
             // Čuvanje u bazi
             Certificate savedCertificate = certificateService.saveCertificate(certificate);
 
+            // AUDIT LOG: Root sertifikat kreiran
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "Root certificate created", true,
+                    "certificateId=" + savedCertificate.getId() + ", serialNumber=" + savedCertificate.getSerialNumber() +
+                            ", subject=" + savedCertificate.getSubject(), httpRequest);
+
             return ResponseEntity.ok(Map.of(
                     "message", "Root certificate created successfully",
                     "certificateId", savedCertificate.getId(),
@@ -215,6 +259,11 @@ public class CertificateController {
             ));
 
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri kreiranju root sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "Root certificate creation failed", false,
+                    "error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of(
                     "message", "Error creating root certificate: " + e.getMessage()
             ));
@@ -225,7 +274,8 @@ public class CertificateController {
     @PostMapping("/intermediate")
     public ResponseEntity<?> createIntermediateCertificate(
             @Valid @RequestBody CreateCertificateDTO request,
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
 
         try {
             // 1. Provera da li je issuer ID uopšte poslat
@@ -257,6 +307,13 @@ public class CertificateController {
             // Ovde pozivamo novu metodu iz CertificateService koja će obaviti sve
             Certificate savedCertificate = certificateService.createAndSaveIntermediateCertificate(request, owner);
 
+            // AUDIT LOG: Intermediate sertifikat kreiran
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "Intermediate certificate created", true,
+                    "certificateId=" + savedCertificate.getId() + ", serialNumber=" + savedCertificate.getSerialNumber() +
+                            ", subject=" + savedCertificate.getSubject() + ", issuerId=" + request.getIssuerCertificateId(),
+                    httpRequest);
+
             return ResponseEntity.ok(Map.of(
                     "message", "Intermediate certificate created successfully",
                     "certificateId", savedCertificate.getId(),
@@ -264,8 +321,18 @@ public class CertificateController {
             ));
 
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neuspešno kreiranje intermediate sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "Intermediate certificate creation failed", false,
+                    "error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri kreiranju intermediate sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "Intermediate certificate creation error", false,
+                    "error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of(
                     "message", "Error creating intermediate certificate: " + e.getMessage()
             ));
@@ -283,13 +350,20 @@ public class CertificateController {
     // preuzimanje sertifikata (svi ulogovani - sa proverom autorizacije)
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}/download")
-    public ResponseEntity<?> downloadCertificate(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<?> downloadCertificate(@PathVariable Long id,
+                                                 @AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                 HttpServletRequest httpRequest) {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
             
             // Provjera autorizacije
             if (!certificateService.canUserAccessCertificate(id, user)) {
+                // AUDIT LOG: Neovlašćen download
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                        "Unauthorized download attempt", false,
+                        "certificateId=" + id + ", userId=" + user.getId(), httpRequest);
+
                 return ResponseEntity.status(403).body(Map.of("message", "Not authorized to download this certificate"));
             }
 
@@ -307,6 +381,12 @@ public class CertificateController {
 
             byte[] pemBytes = pemContent.getBytes(StandardCharsets.UTF_8);
 
+            // AUDIT LOG: Uspešan download sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "Certificate downloaded", true,
+                    "certificateId=" + id + ", serialNumber=" + certificate.getSerialNumber() +
+                            ", type=" + certificate.getType(), httpRequest);
+
             return ResponseEntity.ok()
                     .header("Content-Type", "application/pkix-cert")
                     .header("Content-Disposition",
@@ -314,6 +394,11 @@ public class CertificateController {
                     .body(pemBytes);
 
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri downloadu
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "Certificate download failed", false,
+                    "certificateId=" + id + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).body(Map.of(
                     "message", "Error downloading certificate: " + e.getMessage()
             ));
@@ -378,7 +463,8 @@ public class CertificateController {
     @PostMapping("/end-entity/csr")
     public ResponseEntity<?> createEECertificateFromCsr(
             @Valid @RequestBody CreateEECsrRequestDTO request, // 🔥 Korišćenje novog DTO-a
-            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest httpRequest) {
 
         try {
             User owner = userService.findByEmail(userPrincipal.getEmail())
@@ -392,12 +478,25 @@ public class CertificateController {
             Date validFrom = new Date();
 
             if (validTo.before(validFrom)) {
+                // AUDIT LOG: Nevalidan datum
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                        "Invalid certificate date", false,
+                        "validTo=" + validTo + ", validFrom=" + validFrom, httpRequest);
+
                 return ResponseEntity.badRequest().body(Map.of("message", "Valid to date must be after today's date."));
             }
 
             // Poziv servisa za generisanje i čuvanje EE sertifikata
             Certificate savedCertificate = certificateService.createAndSaveEECertificateFromCsr(
                     csrPem, validFrom, validTo, issuerCertificateId, owner);
+
+            // AUDIT LOG: EE sertifikat kreiran iz CSR-a
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "End-Entity certificate created from CSR", true,
+                    "certificateId=" + savedCertificate.getId() + ", serialNumber=" + savedCertificate.getSerialNumber() +
+                            ", subject=" + savedCertificate.getSubject() + ", issuerId=" + issuerCertificateId,
+                    httpRequest);
+
 
             return ResponseEntity.ok(Map.of(
                     "message", "End-Entity certificate created successfully from CSR",
@@ -406,8 +505,19 @@ public class CertificateController {
             ));
 
         } catch (IllegalArgumentException e) {
+            // AUDIT LOG: Neuspešno kreiranje EE sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "End-Entity certificate creation failed", false,
+                    "error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri kreiranju EE sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
+                    "End-Entity certificate creation error", false,
+                    "error=" + e.getMessage(), httpRequest);
+            e.printStackTrace();
+
             e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of(
                     "message", "Error creating End-Entity certificate: " + e.getMessage()
@@ -429,7 +539,9 @@ public class CertificateController {
 
     @PreAuthorize("hasAnyRole('ADMIN', 'BASIC', 'CA')")
     @GetMapping("/end-entity/download/{serialNumber}")
-    public ResponseEntity<byte[]> downloadEECertificate(@PathVariable String serialNumber, @AuthenticationPrincipal UserPrincipal userPrincipal) {
+    public ResponseEntity<byte[]> downloadEECertificate(@PathVariable String serialNumber,
+                                                        @AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                        HttpServletRequest httpRequest) {
         try {
             User user = userService.findByEmail(userPrincipal.getEmail())
                     .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
@@ -439,11 +551,22 @@ public class CertificateController {
 
             // Provera da li korisnik ima pravo da preuzme (mora biti vlasnik i mora biti EE)
             if (!eeCertificate.getOwner().getId().equals(user.getId()) || eeCertificate.getType() != CertificateType.END_ENTITY) {
+                // AUDIT LOG: Neovlašćen download EE sertifikata
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                        "Unauthorized EE certificate download attempt", false,
+                        "serialNumber=" + serialNumber + ", userId=" + user.getId(), httpRequest);
+
                 return ResponseEntity.status(403).body(null);
             }
 
             // Učitavanje i vraćanje X.509 sertifikata
             byte[] certBytes = keystoreService.getCertificateBytes("EE_" + serialNumber);
+
+            // AUDIT LOG: Uspešan download EE sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "End-Entity certificate downloaded", true,
+                    "serialNumber=" + serialNumber + ", subject=" + eeCertificate.getSubject(),
+                    httpRequest);
 
             return ResponseEntity.ok()
                     .contentType(MediaType.parseMediaType("application/x-x509-ca-cert"))
@@ -451,6 +574,11 @@ public class CertificateController {
                     .body(certBytes);
 
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri downloadu EE sertifikata
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "End-Entity certificate download failed", false,
+                    "serialNumber=" + serialNumber + ", error=" + e.getMessage(), httpRequest);
+
             e.printStackTrace();
             return ResponseEntity.status(500).build();
         }
