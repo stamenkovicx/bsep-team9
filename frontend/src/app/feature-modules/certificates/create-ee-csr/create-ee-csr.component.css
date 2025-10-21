@@ -1,0 +1,387 @@
+/* =======================================
+  GENERALNI KONTEJNERI I TELA
+  ======================================= */
+.certificate-form-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+}
+
+.certificate-card {
+    max-width: 800px;
+    width: 100%;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-family: 'Roboto', sans-serif;
+}
+
+h2 {
+    color: #004d99;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2em;
+    font-weight: 500;
+    padding-bottom: 10px;
+}
+
+h3 {
+    color: #333;
+    margin-top: 25px;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+    font-weight: 500;
+    border-left: 5px solid #007bff;
+    padding-left: 10px;
+}
+
+.form-instruction {
+    color: #6a6a6a;
+    font-size: 0.9em;
+    margin-bottom: 20px;
+    padding-bottom: 5px;
+    border-bottom: 1px dashed #eee;
+}
+
+.divider {
+    border: 0;
+    height: 1px;
+    background: #e0e0e0;
+    margin: 30px 0;
+}
+
+/* =======================================
+  FORMA ELEMENTI
+  ======================================= */
+.form-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="date"],
+select,
+textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-size: 1em;
+    background-color: #fefefe;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 1px #007bff;
+    outline: none;
+    background-color: #ffffff;
+}
+
+textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: monospace;
+    background-color: #f7f7f7;
+    white-space: pre; 
+    overflow-x: auto;
+}
+
+
+
+/* Redovi za dva polja */
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-group.half-width {
+    flex: 1;
+}
+
+.error-message {
+    color: #e53935;
+    font-size: 0.8em;
+    margin-top: 5px;
+}
+
+/* =======================================
+  DUGMAD (BUTTONS) I CSS DISABLE KLASA
+  ======================================= */
+.btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+
+.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+
+/* Dodajemo i za select tag gde je potrebno (npr. issuersLoading) */
+select.disabled {
+    background-color: #eeeeee;
+    color: #666;
+    cursor: not-allowed;
+    border-color: #ddd;
+}
+
+
+.submit-btn-wrapper, .generate-btn-wrapper {
+    margin-top: 30px;
+    text-align: right;
+}
+
+.btn-large {
+    padding: 15px 30px;
+    font-size: 1.1em;
+}
+
+.loading-icon {
+    margin-right: 8px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* =======================================
+  PORUKE I ALERT-I
+  ======================================= */
+.alert-success {
+    background-color: #e6f7ff;
+    color: #004d99;
+    border: 1px solid #91d5ff;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+}
+
+.alert-success span {
+    font-size: 1.2em;
+    margin-right: 8px;
+}
+
+.success-panel {
+    margin-top: 40px;
+    padding: 25px;
+    background-color: #e6ffed;
+    border: 1px solid #52c41a;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.success-panel h3 {
+    color: #28a745;
+    font-size: 1.8em;
+    margin-bottom: 15px;
+    border: none;
+    padding: 0;
+}
+
+.success-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}
+
+.template-header-button {
+  border-color: #ff9800;
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.04);
+  white-space: nowrap;
+
+  display: block;
+  margin-left: auto;
+  margin-right: 0;
+
+  margin-bottom: 15px; 
+}
+
+.template-header-button:hover {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.template-header-button mat-icon {
+  margin-right: 8px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+/* Template styling */
+.template-banner {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+}
+
+.template-warning {
+    background: #fff3e0;
+    border: 1px solid #ff9800;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.template-warning code {
+    background: #ffecb3;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.template-field-info {
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 8px;
+    margin-top: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.template-error {
+    background: #ffebee;
+    border-left: 4px solid #f44336;
+    padding: 8px 12px;
+}
+
+/* Disabled field styling */
+select[disabled], input[disabled] {
+    background-color: #f5f5f5;
+    color: #666;
+    cursor: not-allowed;
+}
+
+/* Error state for CN input */
+input.error {
+    border-color: #f44336 !important;
+    background-color: #ffebee;
+}
+
+/* =======================================
+  RESPONSIVE DESIGN
+  ======================================= */
+@media (max-width: 768px) {
+    .certificate-card {
+        margin: 20px;
+        padding: 20px;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .form-group.half-width {
+        margin-bottom: 15px;
+    }
+
+    .submit-btn-wrapper, .generate-btn-wrapper {
+        text-align: center;
+    }
+
+    .btn-large {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .success-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+.success-overlay {
+    /* Fiksira ga preko celog ekrana */
+    position: fixed; 
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Tamna pozadina */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000; /* Osigurava da je iznad svega */
+}
+
+.success-panel-modal {
+    max-width: 500px; /* Manja širina za bolji izgled */
+    width: 90%;
+    padding: 35px;
+    background-color: #e6ffed; /* Svetlo zelena pozadina */
+    border: 1px solid #52c41a;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); /* Jača senka */
+    transform: scale(1); /* Početna skala za animaciju (ako je imate) */
+}
+
+/* Redefinišemo unutrašnje stilove da bi odgovarali modalu */
+.success-panel-modal h3 {
+    color: #28a745;
+    font-size: 1.8em;
+    margin-bottom: 20px;
+    border: none;
+    padding: 0;
+}
+
+.success-actions {
+    margin-top: 30px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+}

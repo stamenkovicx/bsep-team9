@@ -1,0 +1,73 @@
+mat-toolbar {
+  background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 0 20px;
+}
+
+div {
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+#buttons {
+  width: auto;
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+}
+
+#buttons button {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-transform: none;  
+  font-size: 14px;
+}
+
+#buttons button[color="accent"] {
+  background: linear-gradient(135deg, #26a69a 0%, #00796b 100%); /* Teal boja */
+  color: white;
+}
+
+#buttons button[color="primary"] {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+#buttons button[color="accent"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(38, 166, 154, 0.4);
+}
+
+#buttons button[color="primary"]:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  mat-toolbar {
+    padding: 0 10px;
+  }
+  
+  #buttons {
+    gap: 8px;
+  }
+  
+  #buttons button {
+    font-size: 13px;
+    padding: 0 12px;
+  }
+}
+.navbar-2fa-btn[disabled] {
+  background-color: rgba(0, 0, 0, 0.12) !important;
+  color: rgba(0, 0, 0, 0.38) !important;   
+}
+
+.navbar-2fa-btn[disabled] {
+  box-shadow: none;
+}

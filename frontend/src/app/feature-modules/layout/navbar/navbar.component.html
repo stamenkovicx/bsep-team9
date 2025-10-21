@@ -1,0 +1,28 @@
+<mat-toolbar color="primary">
+    <div>
+        <div id="buttons">
+            <button
+                *ngIf="user && user.email !== ''"
+                color="accent"
+                mat-raised-button
+                (click)="open2FADialog()"
+                class="navbar-2fa-btn"
+                [disabled]="user.is2FAEnabled"> <mat-icon>security</mat-icon>
+                2FA Setup
+            </button>
+            <!-- Password Manager Button -->
+            <button *ngIf="user && user.email !== ''" 
+                    color="accent" 
+                    mat-raised-button 
+                    [routerLink]="['password-manager/passwords']"
+                    class="navbar-password-btn">
+                <mat-icon>password</mat-icon>
+                Password Manager
+            </button>
+            <button *ngIf="user && user.email !== '' && user.role === 'ADMIN'  " color="accent" mat-raised-button [routerLink]="['register']">Register CA</button>
+            <button *ngIf="user && user.email === ''" color="accent" mat-raised-button [routerLink]="['login']">Login</button>
+            <button *ngIf="user && user.email !== ''" color="accent" mat-raised-button (click)="onLogout()">Logout</button>
+            <button color="primary" mat-raised-button [routerLink]="['home']">Home</button>
+        </div>
+    </div>
+</mat-toolbar>  

@@ -1,0 +1,403 @@
+package com.bsep.pki_system.service;
+
+import com.bsep.pki_system.dto.CreateCertificateDTO;
+import com.bsep.pki_system.model.*;
+import com.bsep.pki_system.repository.CertificateRepository;
+import com.bsep.pki_system.util.CertificateUtil;
+import org.springframework.context.annotation.Lazy;
+import org.bouncycastle.cert.X509CRLHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigInteger;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+import java.security.spec.X509EncodedKeySpec;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.Comparator;
+
+@Service
+public class CertificateService {
+
+    private final CertificateRepository certificateRepository;
+    private final CertificateGeneratorService certificateGeneratorService;
+    private final KeystoreService keystoreService;
+    private final CRLService crlService;
+
+
+    public CertificateService(CertificateRepository certificateRepository,
+                              @Lazy CertificateGeneratorService certificateGeneratorService,
+                              KeystoreService keystoreService, CRLService crlService) {
+        this.certificateRepository = certificateRepository;
+        this.certificateGeneratorService = certificateGeneratorService;
+        this.keystoreService = keystoreService;
+        this.crlService = crlService;
+    }
+
+    public Certificate saveCertificate(Certificate certificate) {
+        return certificateRepository.save(certificate);
+    }
+
+    public Optional<Certificate> findById(Long id) {
+        return certificateRepository.findById(id);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Certificate> findBySerialNumber(String serialNumber) {
+        return certificateRepository.findBySerialNumber(serialNumber);
+    }
+
+    public List<Certificate> findAll() {
+        return certificateRepository.findAll();
+    }
+
+    public List<Certificate> findByType(CertificateType type) {
+        return certificateRepository.findByType(type);
+    }
+
+    public List<Certificate> findByOwner(User owner) {
+        return certificateRepository.findByOwnerId(owner.getId());
+    }
+
+    public List<Certificate> findByIssuer(Certificate issuer) {
+        return certificateRepository.findByIssuerCertificateId(issuer.getId());
+    }
+
+    public boolean isCertificateValid(Long certificateId) {
+        Optional<Certificate> certificateOpt = certificateRepository.findById(certificateId);
+        if (certificateOpt.isEmpty()) {
+            return false;
+        }
+
+        Certificate certificate = certificateOpt.get();
+        Date now = new Date();
+        // 1. Proverava status samog sertifikata (da li je povučen)
+        // 2. Proverava period važenja samog sertifikata
+        // 3. I na kraju, POZIVA isChainValid da proveri ceo lanac iznad
+        return certificate.getStatus() == CertificateStatus.VALID &&
+                certificate.getValidFrom().before(now) &&
+                certificate.getValidTo().after(now) &&
+                isChainValid(certificate);
+    }
+
+    public void revokeCertificate(Long certificateId, String reason) {
+        Optional<Certificate> certificateOpt = certificateRepository.findById(certificateId);
+        if (certificateOpt.isPresent()) {
+            Certificate certificate = certificateOpt.get();
+            certificate.setStatus(CertificateStatus.REVOKED);
+            certificate.setRevocationReason(reason);
+            certificate.setRevokedAt(LocalDateTime.now());
+            certificateRepository.save(certificate);
+            try {
+                if (certificate.getIssuerCertificate() != null) {
+                    // Ovo je Intermediate ili EE sertifikat. Obrisi kes njegovog IZDAVAOCA.
+                    crlService.clearCache(certificate.getIssuerCertificate().getSerialNumber());
+                } else {
+                    // Ovo je Root sertifikat. Obrisi kes za NJEGA SAMOG.
+                    crlService.clearCache(certificate.getSerialNumber());
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Provjerava da li korisnik može da pristupi sertifikatu
+     */
+    public boolean canUserAccessCertificate(Long certificateId, User user) {
+        Optional<Certificate> certificateOpt = certificateRepository.findById(certificateId);
+        if (certificateOpt.isEmpty()) {
+            return false;
+        }
+
+        Certificate certificate = certificateOpt.get();
+
+        // ADMIN može da pristupi svim sertifikatima
+        if (user.getRole() == UserRole.ADMIN) {
+            return true;
+        }
+
+        // CA korisnik može da pristupi sertifikatima iz svog lanca
+        if (user.getRole() == UserRole.CA) {
+            return isCertificateInUserOrganizationChain(certificate, user.getOrganization());
+        }
+
+        // BASIC korisnik može da pristupi samo svojim EE sertifikatima
+        if (user.getRole() == UserRole.BASIC) {
+            return certificate.getOwner().getId().equals(user.getId()) &&
+                    certificate.getType() == CertificateType.END_ENTITY;
+        }
+
+        return false;
+    }
+
+    public Certificate createAndSaveIntermediateCertificate(CreateCertificateDTO request, User owner) throws Exception {
+        // 1. Pronađi sertifikat izdavaoca (issuer)
+        Certificate issuerCertificate = certificateRepository.findById(request.getIssuerCertificateId())
+                .orElseThrow(() -> new IllegalArgumentException("Issuer certificate with ID " + request.getIssuerCertificateId() + " not found."));
+
+        // 2. Validacija izdavaoca
+        validateIssuerForSigning(issuerCertificate, request);
+
+        // 3. Ako je sve u redu, generiši sertifikat
+        Certificate intermediateCert = certificateGeneratorService.generateIntermediateCertificate(request, owner, issuerCertificate);
+
+        // 4. Sačuvaj ga u bazi
+        return saveCertificate(intermediateCert);
+    }
+
+    private void validateIssuerForSigning(Certificate issuer, CreateCertificateDTO newCertRequest) {
+        // Provera statusa (da li je povucen)
+        if (issuer.getStatus() != CertificateStatus.VALID) {
+            throw new IllegalArgumentException("Issuer certificate is not valid (status: " + issuer.getStatus() + ").");
+        }
+
+        // Provera da li je uopste CA
+        if (issuer.getIsCA() == null || !issuer.getIsCA()) {
+            throw new IllegalArgumentException("Issuer certificate is not a CA and cannot sign other certificates.");
+        }
+
+        // Provera datuma vazenja samog izdavaoca
+        Date now = new Date();
+        if (issuer.getValidFrom().after(now) || issuer.getValidTo().before(now)) {
+            throw new IllegalArgumentException("Issuer certificate is expired or not yet valid.");
+        }
+
+        // Ključna provera: validnost novog sertifikata mora biti unutar validnosti izdavaoca
+        if (newCertRequest.getValidFrom().before(issuer.getValidFrom()) || newCertRequest.getValidTo().after(issuer.getValidTo())) {
+            throw new IllegalArgumentException("The new certificate's validity period must be within the issuer's validity period.");
+        }
+    }
+
+
+    //Pronalazi listu validnih sertifikata za potpisivanje (issuers) na osnovu uloge ulogovanog korisnika
+    public List<Certificate> findValidIssuersForUser(User user) {
+        Date now = new Date();
+
+        // 1. Dobavi SVE potencijalne izdavaoce (CA=true, status=VALID, datum OK)
+        List<Certificate> potentialIssuers = certificateRepository.findValidIssuers(CertificateStatus.VALID, now);
+
+        // 2. Kreiraj Stream za dalje filtriranje
+        Stream<Certificate> filteredStream = potentialIssuers.stream();
+
+        // 3. Filtriranje po ulozi korisnika (CA I USER moraju da vide samo sertifikate svoje organizacije)
+        if (user.getRole() == UserRole.CA || user.getRole() == UserRole.BASIC) {
+            // CA i USER mogu da koriste samo validne CA sertifikate iz svoje organizacije.
+            // Filtriramo sertifikate čiji lanac pripada organizaciji korisnika.
+            filteredStream = filteredStream.filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()));
+        }
+        // Ako je uloga ADMIN, filtriranje po organizaciji se NE RADI (vidi sve organizacije).
+
+        // 4. Filtriraj SAMO one čiji je CEO LANAC validan
+        // Koristimo 'isCertificateValid' koja interno poziva 'isChainValid'
+        filteredStream = filteredStream.filter(cert -> this.isCertificateValid(cert.getId()));
+
+        return filteredStream.collect(Collectors.toList());
+    }
+
+    //Pronalazi sve sertifikate koji pripadaju "lancu" ulogovanog korisnika.
+    public List<Certificate> findCertificateChainForUser(User user) {
+        // Admin uvek vidi sve sertifikate u sistemu.
+        if (user.getRole() == UserRole.ADMIN) {
+            return findAll();
+        }
+
+        // Za CA korisnika, pronalazimo sve sertifikate koji su deo lanca njegove organizacije.
+        if (user.getRole() == UserRole.CA) {
+            // 1. Prvo dobavi SVE sertifikate iz baze.
+            List<Certificate> allCertificates = findAll();
+
+            // 2. Filtriraj listu: zadrži samo one koji pripadaju lancu organizacije CA korisnika.
+            return allCertificates.stream()
+                    .filter(cert -> isCertificateInUserOrganizationChain(cert, user.getOrganization()))
+                    .collect(Collectors.toList());
+        }
+
+        // Basic korisnik vidi samo sertifikate čiji je on vlasnik (owner).
+        return findByOwner(user);
+    }
+
+    // proverava da li sertifikat pripada lancu određene organizacije.Prolazi uz lanac od datog sertifikata sve do Root-a.
+    public boolean isCertificateInUserOrganizationChain(Certificate certificate, String userOrganization) {
+        Certificate current = certificate;
+        while (current != null) {
+            // Izvlači organizaciju iz Subject polja trenutnog sertifikata u lancu.
+            String certOrganization = getOrganizationFromSubject(current.getSubject());
+
+            // Ako se organizacije poklapaju, sertifikat je deo lanca.
+            if (userOrganization != null && userOrganization.equals(certOrganization)) {
+                return true;
+            }
+            // Pređi na sledeći sertifikat u lancu (roditelja).
+            current = current.getIssuerCertificate();
+        }
+        return false; // Nismo našli poklapanje u celom lancu.
+    }
+
+    //izvlači vrednost organizacije (O=) iz Subject stringa.
+    private String getOrganizationFromSubject(String subject) {
+        if (subject == null) return null;
+
+        // Koristimo regularni izraz da pronađemo vrednost O=...
+        Pattern pattern = Pattern.compile("O=([^,]+)");
+        Matcher matcher = pattern.matcher(subject);
+
+        if (matcher.find()) {
+            return matcher.group(1); // Vraća samo tekst između "O=" i sledećeg zareza.
+        }
+        return null; // Nije pronađena organizacija.
+    }
+
+    private boolean isChainValid(Certificate certificate) {
+        Certificate current = certificate;
+
+        // Idemo uz lanac sve dok ne dođemo do Root-a (koji nema issuera)
+        while (current.getIssuerCertificate() != null) {
+            Certificate issuer = current.getIssuerCertificate();
+
+            // Provera #1: Status i datum važenja roditelja
+            if (issuer.getStatus() != CertificateStatus.VALID || issuer.getValidTo().before(new Date())) {
+                return false;
+            }
+
+            // Provera #2: Ispravnost digitalnog potpisa
+            try {
+                // 1. Uzmi stvarni X509 objekat za "dete" iz keystore-a
+                X509Certificate currentX509 = (X509Certificate) keystoreService.getCertificate("CA_" + current.getSerialNumber());
+
+                // 2. Rekonstruiši javni ključ "roditelja" (izdavaoca) iz stringa u bazi
+                byte[] issuerPublicKeyBytes = java.util.Base64.getDecoder().decode(issuer.getPublicKey());
+                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+                PublicKey issuerPublicKey = keyFactory.generatePublic(new X509EncodedKeySpec(issuerPublicKeyBytes));
+
+                // 3. Verifikuj potpis deteta koristeći javni ključ roditelja
+                //    Ako potpis nije ispravan, ova linija će baciti izuzetak
+                currentX509.verify(issuerPublicKey);
+            } catch (Exception e) {
+                // to znači da potpis nije validan.
+                e.printStackTrace();
+                return false;
+            }
+            if (crlService.isCertificateRevoked(current, issuer)) {
+                // Ako JESTE na listi, lanac NIJE validan
+                return false;
+            }
+            // Predji na sledeci sertifikat u lancu
+            current = issuer;
+        }
+
+        // Stigli smo do Root-a i svi potpisi u lancu su bili ispravni.
+        return true;
+    }
+
+    public Certificate createAndSaveEECertificateFromCsr(
+            String csrPem, Date validFrom, Date validTo, Long issuerCertificateId, User owner) throws Exception {
+
+        // 1. Pronađi sertifikat izdavaoca (issuer)
+        Certificate issuerCertificate = certificateRepository.findById(issuerCertificateId)
+                .orElseThrow(() -> new IllegalArgumentException("Issuer certificate with ID " + issuerCertificateId + " not found."));
+
+
+
+        // 3. Validacija izdavaoca (CA, važenje, status)
+        validateIssuerForSigning(issuerCertificate, validFrom, validTo);
+
+        // 4. Generiši sertifikat koristeći GeneratorService
+        Certificate eeCert = certificateGeneratorService.generateEECertificateFromCsr(
+                csrPem, validFrom, validTo, issuerCertificate, owner);
+
+        // 5. Sačuvaj ga u bazi
+        return saveCertificate(eeCert);
+    }
+
+    public List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type) {
+        // Pretpostavljam da je ova metoda dodata u CertificateRepository kao:
+        // List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type);
+        // Ako repozitorijum ne podržava direktno ovo, koristi se stream filter:
+        return certificateRepository.findByOwnerId(ownerId).stream()
+                .filter(c -> c.getType() == type)
+                .collect(Collectors.toList());
+    }
+
+    private void validateIssuerForSigning(Certificate issuer, Date newValidFrom, Date newValidTo) {
+        // Provera statusa (da li je povucen)
+        if (issuer.getStatus() != CertificateStatus.VALID) {
+            throw new IllegalArgumentException("Issuer certificate is not valid (status: " + issuer.getStatus() + ").");
+        }
+
+        // Provera da li je uopste CA
+        if (issuer.getIsCA() == null || !issuer.getIsCA()) {
+            throw new IllegalArgumentException("Issuer certificate is not a CA and cannot sign other certificates.");
+        }
+
+        // Provera datuma vazenja samog izdavaoca
+        Date now = new Date();
+        if (issuer.getValidFrom().after(now) || issuer.getValidTo().before(now)) {
+            throw new IllegalArgumentException("Issuer certificate is expired or not yet valid.");
+        }
+
+        // Ključna provera: validnost novog sertifikata mora biti unutar validnosti izdavaoca
+        if (newValidFrom.before(issuer.getValidFrom()) || newValidTo.after(issuer.getValidTo())) {
+            throw new IllegalArgumentException("The new certificate's validity period must be within the issuer's validity period.");
+        }
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public Certificate saveEndEntityCertificate(Certificate certificate, X509Certificate x509Cert) throws CertificateEncodingException {
+
+        // 1. Konvertuj X509 objekat u PEM String
+        String pemData = CertificateUtil.toPem(x509Cert);
+
+        // 2. Dodaj PEM podatke u model
+        // Ovo čuva sertifikat u bazi bez privatnog ključa, ispunjavajući zahtev.
+        certificate.setPemData(pemData);
+
+        // 3. Sačuvaj model u bazi
+        return certificateRepository.save(certificate);
+    }
+
+
+    // Pronalazi validan End Entity sertifikat za korisnika
+    public Optional<Certificate> findValidEndEntityCertificateByOwner(User owner) {
+        List<Certificate> userCertificates = findByOwner(owner);
+
+        return userCertificates.stream()
+                .filter(cert -> cert.getType() == CertificateType.END_ENTITY)
+                .filter(cert -> cert.getStatus() == CertificateStatus.VALID)
+                .filter(cert -> {
+                    Date now = new Date();
+                    return cert.getValidFrom().before(now) && cert.getValidTo().after(now);
+                })
+                .max(Comparator.comparing(Certificate::getValidTo)); // Vrati onaj sa najdužim važenjem
+    }
+
+    // Pronalazi javni ključ korisnika iz njegovog validnog EE sertifikata
+    public Optional<String> findUserPublicKey(User user) {
+        return findValidEndEntityCertificateByOwner(user)
+                .map(Certificate::getPublicKey);
+    }
+
+    // Proverava da li korisnik ima validan EE sertifikat za korišćenje password managera
+    public boolean canUserUsePasswordManager(User user) {
+        return findValidEndEntityCertificateByOwner(user).isPresent();
+    }
+
+    // Pronalazi sertifikat (i javni ključ) korisnika po email-u
+    public Optional<String> findPublicKeyByUserEmail(String email) {
+        // Ova metoda će biti korišćena za deljenje lozinki
+        return Optional.empty(); // Privremeno
+    }
+
+
+}
