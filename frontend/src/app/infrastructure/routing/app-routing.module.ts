@@ -31,6 +31,11 @@ const routes: Routes = [
     path: 'change-password-required',
     component: ChangePasswordRequiredComponent
   },    
+  {
+    path: 'password-manager',
+    canActivate: [AuthGuard],
+    loadChildren: () =>
+      import('src/app/feature-modules/password-manager/password-manager.module').then(m => m.PasswordManagerModule)  },
  // 2. Podrazumevana ruta: Preusmerava praznu putanju na glavnu stranicu
   {path: '', redirectTo: '/home', pathMatch: 'full'},
   // 3. Džoker ruta (opciono): Preusmerava sve nepoznate URL-ove na početnu stranicu
