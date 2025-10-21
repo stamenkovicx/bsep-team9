@@ -4,6 +4,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { PasswordManagerService } from '../password-manager.service';
 import { PasswordEntryDTO } from '../model/password-manager.model';
 import { CryptoService } from '../service/crypto.service';
+import { ChangeDetectorRef } from '@angular/core';
+import { AuthService } from 'src/app/infrastructure/auth/auth.service';
 
 @Component({
   selector: 'app-password-list',
@@ -16,17 +18,28 @@ export class PasswordListComponent implements OnInit {
   passwords: (PasswordEntryDTO & { showDecrypted?: boolean; decrypting?: boolean })[] = [];
   isLoading = false;
   decryptingId: number | null = null;
-  currentUserId = 1; // Ovo ćeš dobiti iz JWT tokena
+  decryptedPasswordId: number | null = null;  
+  decryptedPasswordText: string = '';  
+  currentUserId = 1;
 
   constructor(
     private passwordService: PasswordManagerService,
     private router: Router,
     private snackBar: MatSnackBar,
-    private cryptoService: CryptoService
+    private cryptoService: CryptoService,
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
     this.loadPasswords();
+    this.loadCurrentUser();
+  }
+
+  loadCurrentUser(): void {
+    this.authService.user$.subscribe(user => {
+      this.currentUserId = user.id;
+    });
   }
 
   loadPasswords(): void {
@@ -71,62 +84,72 @@ export class PasswordListComponent implements OnInit {
     event.target.value = '';
   }
 
-async decryptPasswordWithPrivateKey(privateKeyFile: File, passwordId: number): Promise<void> {
-  try {
-    console.log('Starting decryption for password:', passwordId);
-    
-    // Pročitaj fajl sa privatnim ključem
-    const privateKeyPem = await this.readFileAsText(privateKeyFile);
-    console.log('Private key file read');
-    
-    // Dobavi enkriptovan password sa backend-a
-    this.passwordService.getEncryptedPassword(passwordId).subscribe({
-      next: async (encryptedPassword) => {
-        try {
-          // Dekriptuj password koristeći crypto service
-          const decryptedPassword = await this.cryptoService.decryptWithPrivateKey(
-            privateKeyPem, 
-            encryptedPassword
-          );
-          
-          console.log('Password decrypted successfully');
-          
-          // Prikaži dekriptovan password
-          const password = this.passwords.find(p => p.id === passwordId);
-          if (password) {
-            password.decryptedPassword = decryptedPassword;
-            password.showDecrypted = true;
-            password.decrypting = false;
+  async decryptPasswordWithPrivateKey(privateKeyFile: File, passwordId: number): Promise<void> {
+    try {
+      console.log('[1] Starting decryption for password:', passwordId);
+      
+      // Pročitaj fajl sa privatnim ključem
+      const privateKeyPem = await this.readFileAsText(privateKeyFile);
+      console.log('[2] Private key file read, length:', privateKeyPem.length);
+      
+      // Dobavi enkriptovan password sa backend-a
+      this.passwordService.getEncryptedPassword(passwordId).subscribe({
+        next: async (encryptedPassword) => {
+          try {
+            console.log('[3] Got encrypted password, length:', encryptedPassword.length);
+            
+            // Dekriptuj password koristeći crypto service
+            const decryptedPassword = await this.cryptoService.decryptWithPrivateKey(
+              privateKeyPem, 
+              encryptedPassword
+            );
+            
+            console.log('[4] Password decrypted successfully:', decryptedPassword);
+            console.log('[5] decryptedPasswordId before:', this.decryptedPasswordId);
+            console.log('[6] decryptedPasswordText before:', this.decryptedPasswordText);
+            
+            // Prikaži dekriptovan password
+            this.decryptedPasswordId = passwordId;
+            this.decryptedPasswordText = decryptedPassword;
+            
+            console.log('[7] decryptedPasswordId after:', this.decryptedPasswordId);
+            console.log('[8] decryptedPasswordText after:', this.decryptedPasswordText);
+            console.log('[9] All passwords:', this.passwords.map(p => ({ id: p.id, site: p.siteName })));
+            
+            // FORSIRAJ CHANGE DETECTION
+            this.cdr.detectChanges();
+            console.log('[10] Change detection forced');
             
             // Automatski sakrij nakon 30 sekundi
             setTimeout(() => {
-              password.showDecrypted = false;
-              password.decryptedPassword = undefined;
+              console.log('[11] Hiding password after 30 seconds');
+              this.decryptedPasswordId = null;
+              this.decryptedPasswordText = '';
+              this.cdr.detectChanges();
             }, 30000);
+            
+            this.snackBar.open('Password decrypted successfully', 'Close', { duration: 3000 });
+            
+          } catch (decryptError) {
+            console.error('❌ Decryption failed:', decryptError);
+            this.snackBar.open('Failed to decrypt password. Check your private key.', 'Close', { duration: 5000 });
+          } finally {
+            this.decryptingId = null;
           }
-          
-          this.snackBar.open('Password decrypted successfully', 'Close', { duration: 3000 });
-          
-        } catch (decryptError) {
-          console.error('Decryption failed:', decryptError);
-          this.snackBar.open('Failed to decrypt password. Check your private key.', 'Close', { duration: 5000 });
-        } finally {
+        },
+        error: (error) => {
+          console.error('❌ Error getting encrypted password:', error);
+          this.snackBar.open('Error accessing password', 'Close', { duration: 3000 });
           this.decryptingId = null;
         }
-      },
-      error: (error) => {
-        console.error('Error getting encrypted password:', error);
-        this.snackBar.open('Error accessing password', 'Close', { duration: 3000 });
-        this.decryptingId = null;
-      }
-    });
-    
-  } catch (error) {
-    console.error('File reading failed:', error);
-    this.snackBar.open('Error reading private key file', 'Close', { duration: 3000 });
-    this.decryptingId = null;
+      });
+      
+    } catch (error) {
+      console.error('❌ File reading failed:', error);
+      this.snackBar.open('Error reading private key file', 'Close', { duration: 3000 });
+      this.decryptingId = null;
+    }
   }
-}
 
   private readFileAsText(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
