@@ -7,6 +7,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.bsep.pki_system.audit.AuditLogService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/api/crl")
@@ -14,16 +17,19 @@ public class CRLController {
 
     private final CRLService crlService;
     private final CertificateService certificateService;
+    private final AuditLogService auditLogService;
 
-    public CRLController(CRLService crlService, CertificateService certificateService) {
+    public CRLController(CRLService crlService, CertificateService certificateService,
+                         AuditLogService auditLogService) {
         this.crlService = crlService;
         this.certificateService = certificateService;
+        this.auditLogService = auditLogService;
     }
 
     //Preuzimanje CRL liste za dati CA sertifikat
     // URL format: /api/crl/{serialNumber}.crl
     @GetMapping("/{serialNumber}.crl")
-    public ResponseEntity<byte[]> downloadCRL(@PathVariable String serialNumber) {
+    public ResponseEntity<byte[]> downloadCRL(@PathVariable String serialNumber, HttpServletRequest httpRequest) {
         try {
             // Pronađi CA sertifikat
             Certificate caCertificate = certificateService.findBySerialNumber(serialNumber)
@@ -31,6 +37,12 @@ public class CRLController {
 
             // Generiši CRL
             byte[] crlBytes = crlService.getOrGenerateCRL(caCertificate);
+
+            // AUDIT LOG: Uspešno preuzimanje CRL liste
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "CRL list downloaded successfully", true,
+                    "caSerialNumber=" + serialNumber + ", caSubject=" + caCertificate.getSubject() +
+                            ", crlSize=" + crlBytes.length + " bytes", httpRequest);
 
             // Vrati kao .crl fajl
             return ResponseEntity.ok()
@@ -40,6 +52,11 @@ public class CRLController {
                     .body(crlBytes);
 
         } catch (Exception e) {
+            // AUDIT LOG: Greška pri generisanju CRL liste
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "CRL generation/download failed", false,
+                    "serialNumber=" + serialNumber + ", error=" + e.getMessage(), httpRequest);
+
             return ResponseEntity.status(500).build();
         }
     }
