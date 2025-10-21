@@ -223,9 +223,16 @@ export class CertificateTemplatesComponent implements OnInit {
         // Prikaži uspješnu poruku
         this.showSuccess(`Template "${template.name}" loaded successfully!`);
         
-        // prebaci korisnika na formu za sertifikate
-        // i proslijedi podatke iz šablona
+        // ODREDI GDE DA IDEŠ NA OSNOVU TIPA SERTIFIKATA U TEMPLATE-U
+      const isCACertificate = template.basicConstraints?.toUpperCase() === 'CA:TRUE';
+      
+      if (isCACertificate) {
+        // Template je za CA sertifikat (Root/Intermediate) - idi na CA formu
         this.navigateToCertificateForm(response.prefilledData, template);
+      } else {
+        // Template je za End-Entity sertifikat - idi na EE CSR formu
+        this.navigateToEeCsrForm(response.prefilledData, template);
+      }
       },
       error: (error) => {
         console.error('Error using template:', error);
@@ -243,6 +250,16 @@ export class CertificateTemplatesComponent implements OnInit {
       }
     });
 
+    this.templatesService.setCurrentTemplateData(prefilledData);
+  }
+
+  private navigateToEeCsrForm(prefilledData: any, template: CertificateTemplate): void {
+    this.router.navigate(['/certificates/issue/csr'], { 
+      queryParams: { 
+        templateId: template.id,
+        templateName: template.name
+      }
+    });
     this.templatesService.setCurrentTemplateData(prefilledData);
   }
 
