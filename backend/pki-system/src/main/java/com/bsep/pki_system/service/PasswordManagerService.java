@@ -48,6 +48,12 @@ public class PasswordManagerService {
         Certificate userCertificate = certificateService.findValidEndEntityCertificateByOwner(owner)
                 .orElseThrow(() -> new RuntimeException("User does not have a valid End Entity certificate"));
 
+        // DA VIDIMO KOJI SERTIFIKAT SE KORISTI
+        System.out.println("=== USING CERTIFICATE FOR ENCRYPTION ===");
+        System.out.println("Serial: " + userCertificate.getSerialNumber());
+        System.out.println("Subject: " + userCertificate.getSubject());
+        System.out.println("Public Key: " + userCertificate.getPublicKey().substring(0, 50) + "...");
+
         // Enkriptuj lozinku korisničkim javnim ključem
         String encryptedPassword = encryptionService.encryptWithPublicKey(
                 createDto.getPassword(),
@@ -134,7 +140,10 @@ public class PasswordManagerService {
 
         // OVDE TREBA RE-ENKRIPCIJA SA TARGET USER-OVIM JAVNIM KLJUČEM
         // Za sada koristimo istu enkriptovanu lozinku (privremeno)
-        String encryptedForTarget = encryptedPassword;
+        String encryptedForTarget = encryptionService.encryptWithPublicKey(
+                shareRequest.getPlainTextPassword(), // KORISTI PLAIN TEXT
+                targetCertificate.getPublicKey()
+        );
 
         // Kreiraj share
         PasswordShare share = new PasswordShare();
@@ -186,6 +195,12 @@ public class PasswordManagerService {
             // Pronađi sertifikat korisnika za koga je deljeno
             Certificate userCertificate = certificateService.findValidEndEntityCertificateByOwner(share.getUser())
                     .orElseThrow(() -> new RuntimeException("User certificate not found for: " + share.getUser().getEmail()));
+
+            // DA VIDIMO KOJI SERTIFIKAT SE KORISTI
+            System.out.println("=== USING CERTIFICATE FOR ENCRYPTION ===");
+            System.out.println("Serial: " + userCertificate.getSerialNumber());
+            System.out.println("Subject: " + userCertificate.getSubject());
+            System.out.println("Public Key: " + userCertificate.getPublicKey().substring(0, 50) + "...");
 
             // Enkriptuj novu lozinku korisničkim javnim ključem
             String encryptedPassword = encryptionService.encryptWithPublicKey(newPassword, userCertificate.getPublicKey());

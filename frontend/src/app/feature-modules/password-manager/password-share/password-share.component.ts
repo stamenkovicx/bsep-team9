@@ -25,6 +25,7 @@ export class PasswordShareComponent implements OnInit {
   isLoading = false;
   isSharing = false;
   passwordId?: number;
+  hidePassword = true;
 
   constructor(
     private fb: FormBuilder,
@@ -46,7 +47,8 @@ export class PasswordShareComponent implements OnInit {
 
   createForm(): FormGroup {
     return this.fb.group({
-      targetUserEmail: ['', [Validators.required, Validators.email]]
+      targetUserEmail: ['', [Validators.required, Validators.email]],
+      plainTextPassword: ['', [Validators.required]]
     });
   }
 
@@ -88,7 +90,8 @@ export class PasswordShareComponent implements OnInit {
       
       const shareRequest = {
         passwordEntryId: this.passwordId,
-        targetUserEmail: this.shareForm.get('targetUserEmail')?.value
+        targetUserEmail: this.shareForm.get('targetUserEmail')?.value,
+        plainTextPassword: this.shareForm.get('plainTextPassword')?.value
       };
 
       this.passwordService.sharePassword(shareRequest).subscribe({

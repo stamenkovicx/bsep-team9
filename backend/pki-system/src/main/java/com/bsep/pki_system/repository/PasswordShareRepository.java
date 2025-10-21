@@ -32,4 +32,7 @@ public interface PasswordShareRepository extends JpaRepository<PasswordShare, Lo
 
     // Obriši sva dijeljenja za određeni password entry
     void deleteByPasswordEntry(PasswordEntry passwordEntry);
+
+    @Query("SELECT ps FROM PasswordShare ps WHERE ps.user = :user AND ps.passwordEntry.id = :passwordEntryId")
+    Optional<PasswordShare> findByUserAndPasswordEntryId(@Param("user") User user, @Param("passwordEntryId") Long passwordEntryId);
 }

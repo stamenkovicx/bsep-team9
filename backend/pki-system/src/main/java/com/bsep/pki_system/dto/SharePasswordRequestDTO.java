@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class SharePasswordRequestDTO {
     private Long passwordEntryId;
     private String targetUserEmail; // Email korisnika sa kojim želiš da dijeliš
+    private String plainTextPassword;
 }

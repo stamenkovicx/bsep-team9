@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from 'src/env/environment';
 import { PasswordEntryDTO, CreatePasswordEntryDTO, SharePasswordRequestDTO } from './model/password-manager.model';
+import { CryptoService } from './service/crypto.service';
+
 @Injectable({
   providedIn: 'root'
 })
@@ -41,4 +43,11 @@ export class PasswordManagerService {
   getSharedUsers(entryId: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/${entryId}/shared-users`);
   }
+
+  // Dohvati enkriptovani password za dekripciju
+  getEncryptedPassword(entryId: number): Observable<string> {
+  return this.http.get<string>(`${this.apiUrl}/${entryId}/encrypted-password`, { 
+    responseType: 'text' as 'json' 
+  });
+}
 }

@@ -50,6 +50,12 @@ public class AuditLogService {
     public static final String EVENT_TEMPLATE_DELETED = "TEMPLATE_DELETED";
     public static final String EVENT_TEMPLATE_USED = "TEMPLATE_USED";
     public static final String EVENT_TEMPLATE_ACCESSED = "TEMPLATE_ACCESSED";
+    // Password Manager Events
+    public static final String EVENT_PASSWORD_SAVED = "PASSWORD_SAVED";
+    public static final String EVENT_PASSWORD_VIEWED = "PASSWORD_VIEWED";
+    public static final String EVENT_PASSWORD_SHARED = "PASSWORD_SHARED";
+    public static final String EVENT_PASSWORD_DELETED = "PASSWORD_DELETED";
+    public static final String EVENT_PASSWORD_UPDATED = "PASSWORD_UPDATED";
 
     public void logSecurityEvent(String eventType, String description, boolean success,
                                  String additionalData, HttpServletRequest request) {
