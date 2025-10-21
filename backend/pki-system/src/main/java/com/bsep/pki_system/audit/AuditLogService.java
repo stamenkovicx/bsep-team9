@@ -4,6 +4,7 @@ import com.bsep.pki_system.jwt.UserPrincipal;
 import com.bsep.pki_system.model.User;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.hash.Hashing;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -86,16 +88,20 @@ public class AuditLogService {
                                         String additionalData, HttpServletRequest request,
                                         boolean success, String errorMessage) {
         try {
+            // DODAJ MASKIRANJE
+            String maskedAdditionalData = maskSensitiveData(additionalData);
+            String maskedErrorMessage = maskSensitiveData(errorMessage);
+
             AuditLog auditLog;
 
             if (user != null) {
                 if (success) {
                     auditLog = new AuditLog(eventType, description, user.getId(), user.getEmail(),
-                            user.getRole().name(), additionalData,
+                            user.getRole().name(), maskedAdditionalData,
                             getClientIp(request), getUserAgent(request));
                 } else {
                     auditLog = new AuditLog(eventType, description, user.getId(), user.getEmail(),
-                            user.getRole().name(), additionalData,
+                            user.getRole().name(), maskedAdditionalData,
                             getClientIp(request), getUserAgent(request), errorMessage);
                 }
             } else {
@@ -149,16 +155,20 @@ public class AuditLogService {
                                 String additionalData, HttpServletRequest request,
                                 boolean success, String errorMessage) {
         try {
+            // MASKIRAJ DODATNE PODATKE PRIJE ČUVANJA
+            String maskedAdditionalData = maskSensitiveData(additionalData);
+            String maskedErrorMessage = maskSensitiveData(errorMessage);
+
             AuditLog auditLog;
 
             if (user != null) {
                 if (success) {
                     auditLog = new AuditLog(eventType, description, user.getId(), user.getEmail(),
-                            user.getRole().name(), additionalData,
+                            user.getRole().name(), maskedAdditionalData,
                             getClientIp(request), getUserAgent(request));
                 } else {
                     auditLog = new AuditLog(eventType, description, user.getId(), user.getEmail(),
-                            user.getRole().name(), additionalData,
+                            user.getRole().name(), maskedAdditionalData,
                             getClientIp(request), getUserAgent(request), errorMessage);
                 }
             } else {
@@ -220,5 +230,43 @@ public class AuditLogService {
         }
 
         return auditLogRepository.findWithFilters(userId, eventType, success, startDate, endDate, pageable);
+    }
+
+    // Maskira osjetljive podatke prije logovanja
+    private String maskSensitiveData(String data) {
+        if (data == null) return null;
+
+        String masked = data;
+
+        // Maskiraj email adrese (preserve first 3 characters)
+        masked = masked.replaceAll("\\b([a-zA-Z0-9_\\-\\.]{3})[a-zA-Z0-9_\\-\\.]*@([a-zA-Z0-9_\\-\\.]+\\.[a-zA-Z]{2,})", "$1***@$2");
+
+        // Maskiraj lozinke u dodatnim podacima
+        masked = masked.replaceAll("(password|lozinka|pwd)=[^,&]+", "$1=***MASKED***");
+
+        // Maskiraj JWT tokene
+        masked = masked.replaceAll("(token|jwt|access_token)=[^,&]+", "$1=***MASKED***");
+
+        // Maskiraj private keys
+        masked = masked.replaceAll("-----BEGIN PRIVATE KEY-----.*?-----END PRIVATE KEY-----", "***PRIVATE_KEY_MASKED***");
+
+        return masked;
+    }
+
+    // Validira hash loga za neporecivost
+    public boolean verifyLogIntegrity(AuditLog log) {
+        if (log.getLogHash() == null) return false;
+
+        String calculatedHash = calculateHashForLog(log);
+        return calculatedHash.equals(log.getLogHash());
+    }
+
+    private String calculateHashForLog(AuditLog log) {
+        String dataToHash = log.getTimestamp().toString() + log.getEventType() +
+                log.getDescription() + log.getUserId() + log.getUserEmail() +
+                log.getUserRole() + log.getAdditionalData() + log.getIpAddress() +
+                log.getUserAgent() + log.isSuccess() + log.getErrorMessage();
+
+        return Hashing.sha256().hashString(dataToHash, StandardCharsets.UTF_8).toString();
     }
 }

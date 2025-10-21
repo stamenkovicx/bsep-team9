@@ -1,10 +1,12 @@
 package com.bsep.pki_system.audit;
 
+import com.google.common.hash.Hashing;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 @Entity
@@ -45,6 +47,9 @@ public class AuditLog {
     @Column(length = 500)
     private String errorMessage;
 
+    @Column(name = "log_hash", length = 64)
+    private String logHash;
+
     // Konstruktor za uspješne događaje
     public AuditLog(String eventType, String description, Long userId, String userEmail,
                     String userRole, String additionalData, String ipAddress, String userAgent) {
@@ -75,5 +80,17 @@ public class AuditLog {
         this.userAgent = userAgent;
         this.success = false;
         this.errorMessage = errorMessage;
+    }
+
+    @PrePersist
+    public void calculateHash() {
+        this.logHash = calculateLogHash();
+    }
+
+    private String calculateLogHash() {
+        String dataToHash = timestamp.toString() + eventType + description +
+                userId + userEmail + userRole + additionalData +
+                ipAddress + userAgent + success + errorMessage;
+        return Hashing.sha256().hashString(dataToHash, StandardCharsets.UTF_8).toString();
     }
 }
