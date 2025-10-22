@@ -259,11 +259,39 @@ class PasswordEncryptionServiceTest {
 
         assertNotNull(password);
         assertEquals(16, password.length());
-        // Proveri da sadrži različite tipove karaktera
-        assertTrue(password.matches(".*[A-Z].*"), "Should contain uppercase letters");
-        assertTrue(password.matches(".*[a-z].*"), "Should contain lowercase letters");
-        assertTrue(password.matches(".*[0-9].*"), "Should contain numbers");
-        assertTrue(password.matches(".*[!@#$%^&*()].*"), "Should contain special characters");
+
+        // Proveri da sadrži različite tipove karaktera - sa više pokušaja
+        boolean hasUpper = password.matches(".*[A-Z].*");
+        boolean hasLower = password.matches(".*[a-z].*");
+        boolean hasNumber = password.matches(".*[0-9].*");
+        boolean hasSpecial = password.matches(".*[!@#$%^&*()].*");
+
+        assertTrue(hasUpper, "Should contain uppercase letters. Password: " + password);
+        assertTrue(hasLower, "Should contain lowercase letters. Password: " + password);
+        assertTrue(hasNumber, "Should contain numbers. Password: " + password);
+        assertTrue(hasSpecial, "Should contain special characters. Password: " + password);
+    }
+
+    @Test
+    void generateRandomPassword_ShouldContainRequiredCharacters_AfterMultipleAttempts() {
+        // Testirajte više puta da budete sigurni
+        boolean foundValidPassword = false;
+
+        for (int i = 0; i < 10; i++) {
+            String password = passwordEncryptionService.generateRandomPassword();
+
+            boolean hasUpper = password.matches(".*[A-Z].*");
+            boolean hasLower = password.matches(".*[a-z].*");
+            boolean hasNumber = password.matches(".*[0-9].*");
+            boolean hasSpecial = password.matches(".*[!@#$%^&*()].*");
+
+            if (hasUpper && hasLower && hasNumber && hasSpecial) {
+                foundValidPassword = true;
+                break;
+            }
+        }
+
+        assertTrue(foundValidPassword, "Should generate valid password with all character types within 10 attempts");
     }
 
     @Test
