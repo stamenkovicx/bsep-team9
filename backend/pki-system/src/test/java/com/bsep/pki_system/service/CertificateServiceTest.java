@@ -433,16 +433,16 @@ class CertificateServiceTest {
     @Test
     void findValidIssuersForUser_WhenAdminUser_ShouldReturnAllValidIssuers() {
         List<Certificate> validIssuers = Arrays.asList(rootCertificate, intermediateCertificate);
-        when(certificateRepository.findValidIssuers(CertificateStatus.VALID, new Date()))
+
+        // Koristi any() umesto konkretnog datuma jer se datum generiše u runtime
+        when(certificateRepository.findValidIssuers(eq(CertificateStatus.VALID), any(Date.class)))
                 .thenReturn(validIssuers);
 
-        // Mock the isCertificateValid method to return true for all certificates
-        // Ovo je kompleksnije - privremeno ćemo testirati samo prvi dez
         List<Certificate> result = certificateService.findValidIssuersForUser(adminUser);
 
-        // Umesto assert-a na broj, proverimo da metoda ne baca exception
         assertNotNull(result);
         // Može biti manje od 2 zbog dodatnih filtera u servisu
+        verify(certificateRepository, times(1)).findValidIssuers(eq(CertificateStatus.VALID), any(Date.class));
     }
 
     @Test
