@@ -5,9 +5,11 @@ import com.bsep.pki_system.jwt.JwtService;
 import com.bsep.pki_system.jwt.UserPrincipal;
 import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
+import com.bsep.pki_system.model.UserSession;
 import com.bsep.pki_system.service.EmailVerificationService;
 import com.bsep.pki_system.service.RecaptchaService;
 import com.bsep.pki_system.service.UserService;
+import com.bsep.pki_system.service.UserSessionService;
 import com.bsep.pki_system.validator.PasswordValidator;
 import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
@@ -19,6 +21,8 @@ import com.bsep.pki_system.service.TwoFactorService;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
 import com.bsep.pki_system.audit.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,7 @@ public class AuthController {
     private final RecaptchaService recaptchaService;
     private final TwoFactorService twoFactorService;
     private final AuditLogService auditLogService;
+    private final UserSessionService userSessionService;
 
     public AuthController(UserService userService,
                           JwtService jwtService,
@@ -41,7 +46,8 @@ public class AuthController {
                           EmailVerificationService emailVerificationService,
                           RecaptchaService recaptchaService,
                           TwoFactorService twoFactorService,
-                          AuditLogService auditLogService) {
+                          AuditLogService auditLogService,
+                          UserSessionService userSessionService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.passwordValidator = passwordValidator;
@@ -49,6 +55,7 @@ public class AuthController {
         this.recaptchaService = recaptchaService;
         this.twoFactorService = twoFactorService;
         this.auditLogService = auditLogService;
+        this.userSessionService = userSessionService;
     }
 
     @PostMapping("/register")
@@ -267,6 +274,10 @@ public class AuthController {
 
         // 3. USPESNA PRIJAVA (Generisanje tokena)
         String token = jwtService.generateToken(user);
+        
+        // Create session for the user
+        String sessionId = jwtService.getSessionIdFromToken(token);
+        userSessionService.createSession(user, sessionId, httpRequest);
 
         // AUDIT LOG: Uspešna prijava - KORISTIMO USER OBJEKAT UMESTO UserPrincipal
         auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
@@ -599,6 +610,150 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of(
                     "message", e.getMessage()
+            ));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/sessions")
+    public ResponseEntity<?> getActiveSessions(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                              @RequestHeader("Authorization") String authorizationHeader) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            List<UserSession> sessions = userSessionService.getActiveSessionsForUser(user);
+            String currentSessionId = jwtService.getSessionIdFromToken(authorizationHeader.substring(7));
+
+            List<UserSessionDTO> sessionDTOs = sessions.stream()
+                    .map(session -> {
+                        UserSessionDTO dto = new UserSessionDTO();
+                        dto.setId(session.getId());
+                        dto.setSessionId(session.getSessionId());
+                        dto.setIpAddress(session.getIpAddress());
+                        dto.setDeviceType(session.getDeviceType());
+                        dto.setBrowserName(session.getBrowserName());
+                        dto.setLastActivity(session.getLastActivity());
+                        dto.setCreatedAt(session.getCreatedAt());
+                        dto.setIsActive(session.getIsActive());
+                        dto.setExpiresAt(session.getExpiresAt());
+                        dto.setIsCurrentSession(session.getSessionId().equals(currentSessionId));
+                        return dto;
+                    })
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(sessionDTOs);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error retrieving sessions: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/sessions/{sessionId}")
+    public ResponseEntity<?> revokeSession(@PathVariable String sessionId,
+                                          @AuthenticationPrincipal UserPrincipal userPrincipal,
+                                          HttpServletRequest httpRequest) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Check if the session belongs to the current user
+            Optional<UserSession> sessionOpt = userSessionService.getSessionBySessionId(sessionId);
+            if (sessionOpt.isEmpty() || !sessionOpt.get().getUser().getId().equals(user.getId())) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Session not found or does not belong to user"
+                ));
+            }
+
+            userSessionService.revokeSession(sessionId);
+
+            // AUDIT LOG: Session revoked
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                    "Session revoked", true,
+                    "userId=" + user.getId() + ", sessionId=" + sessionId,
+                    httpRequest, user);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Session revoked successfully"
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace(); // Log the full error
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error revoking session: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @DeleteMapping("/sessions/revoke-all")
+    public ResponseEntity<?> revokeAllSessions(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                              @RequestHeader("Authorization") String authorizationHeader,
+                                              HttpServletRequest httpRequest) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Extract current session ID from JWT token
+            String token = authorizationHeader.substring(7);
+            String currentSessionId = jwtService.getSessionIdFromToken(token);
+            
+            if (currentSessionId == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Invalid token - cannot identify current session"
+                ));
+            }
+
+            // Revoke all other sessions except the current one
+            userSessionService.revokeAllOtherSessionsForUser(user, currentSessionId);
+
+            // AUDIT LOG: All other sessions revoked
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
+                    "All other sessions revoked", true,
+                    "userId=" + user.getId() + ", currentSessionId=" + currentSessionId,
+                    httpRequest, user);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "All other sessions revoked successfully"
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace(); // Log the full error
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error revoking sessions: " + e.getMessage()
+            ));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/sessions/validate")
+    public ResponseEntity<?> validateCurrentSession(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                                   @RequestHeader("Authorization") String authorizationHeader) {
+        try {
+            // Extract session ID from JWT token
+            String token = authorizationHeader.substring(7);
+            String sessionId = jwtService.getSessionIdFromToken(token);
+            
+            if (sessionId == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "message", "Invalid token"
+                ));
+            }
+
+            boolean isActive = userSessionService.isSessionActive(sessionId);
+            
+            return ResponseEntity.ok(Map.of(
+                    "isActive", isActive,
+                    "sessionId", sessionId
+            ));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Error validating session: " + e.getMessage()
             ));
         }
     }

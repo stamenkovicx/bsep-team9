@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -25,11 +26,13 @@ public class JwtService {
     }
 
     public String generateToken(User user) {
+        String sessionId = UUID.randomUUID().toString();
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("userId", user.getId())
                 .claim("role", user.getRole().name())
                 .claim("is2FAEnabled", user.getIs2faEnabled())
+                .setId(sessionId) // JTI claim for unique session identification
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -59,12 +62,14 @@ public class JwtService {
     public String generateTemporaryToken(User user) {
         // kraći rok važenja, npr. 10 minuta
         long temporaryExpirationMs = 48 * 60 * 60 * 1000; // 48 sati
+        String sessionId = UUID.randomUUID().toString();
 
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("userId", user.getId())
                 .claim("role", user.getRole().name()) // možeš staviti i "TEMPORARY"
                 .claim("temporary", true) // oznaka da je token privremen
+                .setId(sessionId) // JTI claim for unique session identification
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + temporaryExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -101,6 +106,24 @@ public class JwtService {
         } catch (Exception e) {
             System.out.println("❌ Error reading token claims: " + e.getMessage());
             throw e;
+        }
+    }
+
+    public String getSessionIdFromToken(String token) {
+        try {
+            Claims claims = getClaims(token);
+            return claims.getId(); // JTI claim
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public String getSessionIdFromExpiredToken(String token) {
+        try {
+            Claims claims = getClaimsFromExpiredToken(token);
+            return claims.getId(); // JTI claim
+        } catch (Exception e) {
+            return null;
         }
     }
 }

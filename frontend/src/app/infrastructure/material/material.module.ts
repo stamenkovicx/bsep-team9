@@ -11,6 +11,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';  
 import { MatSnackBarModule } from '@angular/material/snack-bar';  
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialogModule } from '@angular/material/dialog';
+import { MatChipsModule } from '@angular/material/chips';
 
 @NgModule({
   declarations: [],
@@ -27,6 +29,8 @@ import { MatDividerModule } from '@angular/material/divider';
     MatProgressSpinnerModule,  
     MatSnackBarModule,
     MatDividerModule,
+    MatDialogModule,
+    MatChipsModule,
   ],
    exports: [
     MatToolbarModule,  
@@ -40,6 +44,8 @@ import { MatDividerModule } from '@angular/material/divider';
     MatProgressSpinnerModule,  
     MatSnackBarModule,
     MatDividerModule,
+    MatDialogModule,
+    MatChipsModule,
   ]
 })
 export class MaterialModule { }

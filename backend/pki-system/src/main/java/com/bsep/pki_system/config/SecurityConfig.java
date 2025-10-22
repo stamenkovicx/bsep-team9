@@ -4,6 +4,7 @@ import com.bsep.pki_system.jwt.JwtAuthFilter;
 import com.warrenstrange.googleauth.GoogleAuthenticator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -17,6 +18,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableMethodSecurity // 1. Uključuje method-level security (npr. @PreAuthorize)
+@Profile("!keycloak") // Only active when keycloak profile is not active
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -43,7 +45,15 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 3. Osigurava da je aplikacija stateless
                 .authorizeHttpRequests(auth -> auth
                         // 4. Precizno definisane javne putanje
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/auth/register").permitAll()
+                        .requestMatchers("/auth/login").permitAll()
+                        .requestMatchers("/auth/verify").permitAll()
+                        .requestMatchers("/auth/resend-verification").permitAll()
+                        .requestMatchers("/auth/forgot-password").permitAll()
+                        .requestMatchers("/auth/reset-password").permitAll()
+                        .requestMatchers("/auth/change-password-required").permitAll()
+                        .requestMatchers("/auth/keycloak/**").permitAll()
+                        .requestMatchers("/oauth2/**").permitAll()
                         .requestMatchers("/api/test/public").permitAll()
                         .anyRequest().authenticated() // Svi ostali zahtevi zahtevaju autentifikaciju
                 )

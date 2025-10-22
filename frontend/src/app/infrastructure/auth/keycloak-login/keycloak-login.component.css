@@ -1,0 +1,66 @@
+.keycloak-login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 20px;
+}
+
+.login-card {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.login-card mat-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #1976d2;
+  margin-bottom: 8px;
+}
+
+.login-card mat-card-subtitle {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.login-content {
+  padding: 20px 0;
+}
+
+.keycloak-login-btn {
+  width: 100%;
+  height: 48px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.info-section {
+  margin-top: 24px;
+}
+
+.info-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.info-text mat-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+mat-divider {
+  margin: 16px 0;
+}

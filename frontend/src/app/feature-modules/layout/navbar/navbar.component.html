@@ -19,8 +19,21 @@
                 <mat-icon>password</mat-icon>
                 Password Manager
             </button>
+            <!-- User Sessions Button -->
+            <button *ngIf="user && user.email !== ''" 
+                    color="accent" 
+                    mat-raised-button 
+                    [routerLink]="['user-sessions']"
+                    class="navbar-sessions-btn">
+                <mat-icon>devices</mat-icon>
+                Sessions
+            </button>
             <button *ngIf="user && user.email !== '' && user.role === 'ADMIN'  " color="accent" mat-raised-button [routerLink]="['register']">Register CA</button>
             <button *ngIf="user && user.email === ''" color="accent" mat-raised-button [routerLink]="['login']">Login</button>
+            <button *ngIf="user && user.email === ''" color="primary" mat-raised-button [routerLink]="['login-keycloak']">
+              <mat-icon>security</mat-icon>
+              Login with Keycloak
+            </button>
             <button *ngIf="user && user.email !== ''" color="accent" mat-raised-button (click)="onLogout()">Logout</button>
             <button color="primary" mat-raised-button [routerLink]="['home']">Home</button>
         </div>

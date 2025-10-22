@@ -8,10 +8,13 @@ import { CreateCertificateComponent } from 'src/app/feature-modules/certificates
 import { ChangePasswordRequiredComponent } from '../auth/change-password-required/change-password-required.component';
 import { ForgotPasswordComponent } from '../auth/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from '../auth/reset-password/reset-password.component';
+import { UserSessionsComponent } from '../auth/user-sessions/user-sessions.component';
+import { KeycloakLoginComponent } from '../auth/keycloak-login/keycloak-login.component';
 
 const routes: Routes = [
   {path: 'home', component: HomeComponent},
   {path: 'login', component: LoginComponent},
+  {path: 'login-keycloak', component: KeycloakLoginComponent},
   {path: 'register', component: RegistrationComponent},
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
@@ -30,6 +33,11 @@ const routes: Routes = [
   {
     path: 'change-password-required',
     component: ChangePasswordRequiredComponent
+  },
+  {
+    path: 'user-sessions',
+    component: UserSessionsComponent,
+    canActivate: [AuthGuard]
   },    
   {
     path: 'password-manager',

@@ -5,13 +5,13 @@ import { MaterialModule } from '../material/material.module';
 import { ReactiveFormsModule } from '@angular/forms';
 import { RegistrationComponent } from './registration/registration.component';
 import { RecaptchaModule, RecaptchaFormsModule } from 'ng-recaptcha';
-import { MatCardModule } from '@angular/material/card';
 import { RouterModule } from '@angular/router';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { ChangePasswordRequiredComponent } from './change-password-required/change-password-required.component';
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
-import { ResetPasswordComponent } from './reset-password/reset-password.component'; 
+import { ResetPasswordComponent } from './reset-password/reset-password.component';
+import { UserSessionsComponent } from './user-sessions/user-sessions.component';
+import { ConfirmationDialogComponent } from './user-sessions/confirmation-dialog.component';
+import { KeycloakLoginComponent } from './keycloak-login/keycloak-login.component'; 
 
 
 
@@ -23,7 +23,10 @@ import { ResetPasswordComponent } from './reset-password/reset-password.componen
     RegistrationComponent,
     ChangePasswordRequiredComponent,
     ForgotPasswordComponent,
-    ResetPasswordComponent
+    ResetPasswordComponent,
+    UserSessionsComponent,
+    ConfirmationDialogComponent,
+    KeycloakLoginComponent
   ],
   imports: [
     CommonModule,
@@ -31,14 +34,12 @@ import { ResetPasswordComponent } from './reset-password/reset-password.componen
     ReactiveFormsModule,
     RecaptchaModule,
     RecaptchaFormsModule,
-    MatCardModule,
-    RouterModule,
-    MatFormFieldModule,
-    MatInputModule
+    RouterModule
   ],
   exports: [
     LoginComponent,
-    MatCardModule
+    UserSessionsComponent,
+    KeycloakLoginComponent
   ]
 })
 export class AuthModule { }

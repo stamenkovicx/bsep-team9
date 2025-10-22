@@ -7,6 +7,7 @@ import {
 import { Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 import { User } from './model/user.model';
+import { SessionValidationService } from './session-validation.service';
 
 @Injectable({
   providedIn: 'root',
@@ -14,7 +15,8 @@ import { User } from './model/user.model';
 export class AuthGuard implements CanActivate {
   constructor(
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private sessionValidationService: SessionValidationService
   ) {}
 
   canActivate():
@@ -28,6 +30,10 @@ export class AuthGuard implements CanActivate {
       this.router.navigate(['login']);
       return false;
     }
+
+    // Perform a quick session validation check
+    this.sessionValidationService.validateSessionNow();
+    
     return true;
   }
 }

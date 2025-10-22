@@ -12,6 +12,7 @@ import { Registration } from './model/registration.model';
 import { LoginResponse } from './model/login-response.model';
 import { TwoFACodeDTO } from './dto/TwoFACodeDTO';
 import { LoginPayload } from './model/LoginPayload';
+import { UserSession } from './model/user-session.model';
 
 
 @Injectable({
@@ -135,5 +136,21 @@ export class AuthService {
       environment.apiHost + 'auth/reset-password',
       { token, newPassword, confirmPassword }
     );
+  }
+
+  getActiveSessions(): Observable<UserSession[]> {
+    return this.http.get<UserSession[]>(environment.apiHost + 'auth/sessions');
+  }
+
+  revokeSession(sessionId: string): Observable<{message: string}> {
+    return this.http.delete<{message: string}>(environment.apiHost + 'auth/sessions/' + sessionId);
+  }
+
+  revokeAllSessions(): Observable<{message: string}> {
+    return this.http.delete<{message: string}>(environment.apiHost + 'auth/sessions/revoke-all');
+  }
+
+  validateCurrentSession(): Observable<{isActive: boolean, sessionId: string}> {
+    return this.http.get<{isActive: boolean, sessionId: string}>(environment.apiHost + 'auth/sessions/validate');
   }
 }

@@ -1,0 +1,35 @@
+<div class="keycloak-login-container">
+  <mat-card class="login-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>security</mat-icon>
+        Login with Keycloak
+      </mat-card-title>
+      <mat-card-subtitle>
+        Secure authentication powered by Keycloak
+      </mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="login-content">
+        <p>Click the button below to authenticate using Keycloak:</p>
+        
+        <button mat-raised-button 
+                color="primary" 
+                class="keycloak-login-btn"
+                (click)="loginWithKeycloak()">
+          <mat-icon>login</mat-icon>
+          Login with Keycloak
+        </button>
+        
+        <div class="info-section">
+          <mat-divider></mat-divider>
+          <p class="info-text">
+            <mat-icon>info</mat-icon>
+            Keycloak provides enterprise-grade authentication and authorization.
+          </p>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
