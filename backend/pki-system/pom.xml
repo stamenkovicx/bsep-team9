@@ -28,6 +28,20 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- SonarQube properties -->
+		<sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<sonar.coverage.exclusions>
+			**/dto/**,
+			**/model/**,
+			**/config/**,
+			**/audit/**,
+			**/jwt/**,
+			**/validator/**,
+			**/util/**
+		</sonar.coverage.exclusions>
+		<sonar.language>java</sonar.language>
+		<sonar.sourceEncoding>UTF-8</sonar.sourceEncoding>
+		<sonar.java.coveragePlugin>jacoco</sonar.java.coveragePlugin>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -189,6 +203,17 @@
 							<goal>report</goal>
 						</goals>
 					</execution>
+					<execution>
+						<id>generate-xml-report</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>target/site/jacoco</outputDirectory>
+							<formats>XML</formats>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -200,6 +225,13 @@
 				<configuration>
 					<argLine>@{argLine} -XX:+EnableDynamicAgentLoading</argLine>
 				</configuration>
+			</plugin>
+
+			<!-- SonarQube Plugin -->
+			<plugin>
+				<groupId>org.sonarsource.scanner.maven</groupId>
+				<artifactId>sonar-maven-plugin</artifactId>
+				<version>3.9.1.2184</version>
 			</plugin>
 
 		</plugins>
