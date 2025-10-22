@@ -42,11 +42,8 @@ jobs:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: "https://sonarcloud.io"
       run: |
-         # PRIVREMENO: Pokreni build bez testova da vidimo da li coverage radi
-        mvn -B clean compile
-        # Pokreni samo testove koji prolaze
-        mvn -B test -Dmaven.test.failure.ignore=true
-        mvn -B jacoco:report
-        mvn -B sonar:sonar \
-          -Dsonar.projectKey=stamenkovicx_bsep-team9 \
-          -Dsonar.organization=stamenkovicx
+        run: |
+          mvn -B clean verify -Dmaven.test.failure.ignore=true
+          mvn -B sonar:sonar \
+            -Dsonar.projectKey=stamenkovicx_bsep-team9 \
+            -Dsonar.organization=stamenkovicx
