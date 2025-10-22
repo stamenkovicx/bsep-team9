@@ -1,5 +1,6 @@
 package com.bsep.pki_system.service;
 
+import com.bsep.pki_system.controller.AuthController;
 import com.bsep.pki_system.model.Certificate;
 import com.bsep.pki_system.model.CertificateStatus;
 import com.bsep.pki_system.repository.CertificateRepository;
@@ -26,6 +27,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 @Service
 public class CRLService {
@@ -33,6 +37,8 @@ public class CRLService {
     private final CertificateRepository certificateRepository;
     private final KeystoreService keystoreService;
     private final Map<String, byte[]> crlCache = new ConcurrentHashMap<>();
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     public CRLService(CertificateRepository certificateRepository, KeystoreService keystoreService) {
         this.certificateRepository = certificateRepository;
@@ -134,7 +140,7 @@ public class CRLService {
             return crl.getRevokedCertificate(serialToCheck) != null;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error message", e);
             return true;
         }
     }
