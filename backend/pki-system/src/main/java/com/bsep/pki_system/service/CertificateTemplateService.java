@@ -10,6 +10,7 @@ import com.bsep.pki_system.repository.CertificateTemplateRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -17,6 +18,22 @@ public class CertificateTemplateService {
 
     private final CertificateTemplateRepository templateRepository;
     private final CertificateService certificateService;
+
+    // DOZVOLJENI REGEX PATTERNI - BEZBEDNA LISTA
+    private final Set<String> allowedPatterns = Set.of(
+            ".*",
+            "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+            "^[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+            "^[a-zA-Z0-9 ._-]{1,100}$",
+            "^[a-zA-Z0-9]+$",
+            "^[a-zA-Z]+$",
+            "^[0-9]+$",
+            "^[a-zA-Z0-9]+([ ._-][a-zA-Z0-9]+)*$",
+            ".*\\.ca\\.bsep\\.com",
+            ".*\\.bsep\\.com",
+            "^[a-zA-Z0-9-]+\\.ca\\.bsep\\.com$",
+            "^[a-zA-Z0-9-]+\\.bsep\\.com$"
+    );
 
     public CertificateTemplateService(CertificateTemplateRepository templateRepository,
                                       CertificateService certificateService) {
@@ -28,6 +45,19 @@ public class CertificateTemplateService {
         // SAMO CA korisnik može da kreira šablone
         if (createdBy.getRole() != UserRole.CA) {
             throw new IllegalArgumentException("Only CA users can create templates");
+        }
+
+        // PROVERA REGEX PATTERNA PRI KREIRANJU ŠABLONA
+        if (templateDTO.getCommonNameRegex() != null &&
+                !isPatternAllowed(templateDTO.getCommonNameRegex())) {
+            throw new IllegalArgumentException("Common Name regex pattern is not allowed: " +
+                    templateDTO.getCommonNameRegex());
+        }
+
+        if (templateDTO.getSansRegex() != null &&
+                !isPatternAllowed(templateDTO.getSansRegex())) {
+            throw new IllegalArgumentException("SANs regex pattern is not allowed: " +
+                    templateDTO.getSansRegex());
         }
 
         // Provera da li šablon sa istim imenom već postoji
@@ -137,6 +167,19 @@ public class CertificateTemplateService {
             throw new IllegalArgumentException("Not authorized to update this template");
         }
 
+        // PROVERA REGEX PATTERNA PRI AŽURIRANJU
+        if (templateDTO.getCommonNameRegex() != null &&
+                !isPatternAllowed(templateDTO.getCommonNameRegex())) {
+            throw new IllegalArgumentException("Common Name regex pattern is not allowed: " +
+                    templateDTO.getCommonNameRegex());
+        }
+
+        if (templateDTO.getSansRegex() != null &&
+                !isPatternAllowed(templateDTO.getSansRegex())) {
+            throw new IllegalArgumentException("SANs regex pattern is not allowed: " +
+                    templateDTO.getSansRegex());
+        }
+
         // Provera da li šablon sa istim imenom već postoji (isključujući trenutni)
         if (templateRepository.existsByNameAndIdNot(templateDTO.getName(), templateId)) {
             throw new IllegalArgumentException("Template with name '" + templateDTO.getName() + "' already exists");
@@ -189,19 +232,38 @@ public class CertificateTemplateService {
         return dto;
     }
 
-    // Metoda za validaciju CN prema regex šablonu
+    // MODIFIKOVANA METODA ZA VALIDACIJU
     public boolean validateCommonName(String commonName, String regexPattern) {
         if (regexPattern == null || regexPattern.trim().isEmpty()) {
             return true; // Ako nema regexa, sve je validno
         }
+
+        // PROVERA DA LI JE PATTERN DOZVOLJEN
+        if (!isPatternAllowed(regexPattern)) {
+            throw new IllegalArgumentException("Invalid regex pattern: " + regexPattern +
+                    ". Pattern is not in the allowed list for security reasons.");
+        }
+
         return commonName != null && commonName.matches(regexPattern);
     }
 
-    // Metoda za validaciju SANs prema regex šablonu
+    // METODA ZA VALIDACIJU SANs
     public boolean validateSans(String sans, String regexPattern) {
         if (regexPattern == null || regexPattern.trim().isEmpty() || sans == null) {
             return true; // Ako nema regexa ili SANs, sve je validno
         }
+
+        // PROVERA DA LI JE PATTERN DOZVOLJEN
+        if (!isPatternAllowed(regexPattern)) {
+            throw new IllegalArgumentException("Invalid regex pattern: " + regexPattern +
+                    ". Pattern is not in the allowed list for security reasons.");
+        }
+
         return sans.matches(regexPattern);
+    }
+
+    // METODA ZA PROVERU DOZVOLJENIH PATTERNA
+    private boolean isPatternAllowed(String pattern) {
+        return allowedPatterns.contains(pattern);
     }
 }
