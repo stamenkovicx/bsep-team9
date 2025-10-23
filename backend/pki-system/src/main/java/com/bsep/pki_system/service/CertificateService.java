@@ -1,9 +1,12 @@
 package com.bsep.pki_system.service;
 
+import com.bsep.pki_system.controller.AuthController;
 import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
 import com.bsep.pki_system.util.CertificateUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
 import org.bouncycastle.cert.X509CRLHolder;
 import org.springframework.stereotype.Service;
@@ -25,6 +28,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.Comparator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class CertificateService {
@@ -34,6 +39,7 @@ public class CertificateService {
     private final KeystoreService keystoreService;
     private final CRLService crlService;
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     public CertificateService(CertificateRepository certificateRepository,
                               @Lazy CertificateGeneratorService certificateGeneratorService,
@@ -107,7 +113,7 @@ public class CertificateService {
                     crlService.clearCache(certificate.getSerialNumber());
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                logger.error("Error message", e);
             }
         }
     }

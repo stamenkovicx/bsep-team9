@@ -12,6 +12,8 @@ import com.bsep.pki_system.service.CertificateService;
 import com.bsep.pki_system.service.KeystoreService;
 import com.bsep.pki_system.service.UserService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +30,8 @@ import java.util.Map;
 import java.util.TimeZone;
 import com.bsep.pki_system.audit.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/api/certificates")
@@ -38,6 +42,8 @@ public class CertificateController {
     private final CertificateGeneratorService certificateGeneratorService;
     private final KeystoreService keystoreService;
     private final AuditLogService auditLogService;
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     public CertificateController(CertificateService certificateService, UserService userService,
                                  CertificateGeneratorService certificateGeneratorService,
@@ -149,7 +155,7 @@ public class CertificateController {
                     "Certificate revocation failed", false,
                     "certificateId=" + id + ", error=" + e.getMessage(), httpRequest);
 
-            e.printStackTrace();
+            logger.error("Error message", e);
             return ResponseEntity.status(500)
                     .body(Map.of("message", "Error revoking certificate: " + e.getMessage()));
         }
@@ -516,9 +522,9 @@ public class CertificateController {
             auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_ISSUED,
                     "End-Entity certificate creation error", false,
                     "error=" + e.getMessage(), httpRequest);
-            e.printStackTrace();
+            logger.error("Error message", e);
 
-            e.printStackTrace();
+            logger.error("Error message", e);
             return ResponseEntity.status(500).body(Map.of(
                     "message", "Error creating End-Entity certificate: " + e.getMessage()
             ));
@@ -579,7 +585,7 @@ public class CertificateController {
                     "End-Entity certificate download failed", false,
                     "serialNumber=" + serialNumber + ", error=" + e.getMessage(), httpRequest);
 
-            e.printStackTrace();
+            logger.error("Error message", e);
             return ResponseEntity.status(500).build();
         }
     }

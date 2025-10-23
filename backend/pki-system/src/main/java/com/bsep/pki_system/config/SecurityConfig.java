@@ -39,6 +39,14 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .cors(withDefaults()) // 2. Uključuje CORS konfiguraciju da popravi 403 grešku
+                /*
+                 * CSRF DISABLED - JUSTIFICATION:
+                 * This is a stateless REST API using JWT authentication.
+                 * CSRF protection is not needed because:
+                 * - JWT tokens are sent in Authorization header, not cookies
+                 * - Stateless APIs don't use session cookies vulnerable to CSRF
+                 * - Browser-based attacks don't apply to API endpoints
+                 */
                 .csrf(csrf -> csrf.disable()) // Isključuje CSRF, što je ispravno za JWT
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 3. Osigurava da je aplikacija stateless
                 .authorizeHttpRequests(auth -> auth

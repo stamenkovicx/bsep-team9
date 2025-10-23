@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.security.SecureRandom;
 
 @Service
 public class UserService {
@@ -69,7 +70,7 @@ public class UserService {
         String specialChars = "!@#$%";
         String allChars = upperCase + lowerCase + numbers + specialChars;
 
-        Random random = new Random();
+        Random random = new SecureRandom();
         StringBuilder password = new StringBuilder();
 
         // Obavezno bar po jedan karakter iz svake grupe

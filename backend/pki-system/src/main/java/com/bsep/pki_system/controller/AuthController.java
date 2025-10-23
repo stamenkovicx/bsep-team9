@@ -22,6 +22,8 @@ import java.util.Optional;
 import com.bsep.pki_system.audit.AuditLogService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/auth")
@@ -34,6 +36,8 @@ public class AuthController {
     private final RecaptchaService recaptchaService;
     private final TwoFactorService twoFactorService;
     private final AuditLogService auditLogService;
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     public AuthController(UserService userService,
                           JwtService jwtService,
@@ -348,7 +352,7 @@ public class AuthController {
                 }
             }
 
-            e.printStackTrace(); // ← Ovo će prikazati ceo stack trace
+            logger.error("Error message", e);
             return ResponseEntity.status(500).body(Map.of("message", "Error setting up 2FA: " + e.getMessage()));
         }
     }
@@ -569,7 +573,7 @@ public class AuthController {
             ));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error message", e);
             return ResponseEntity.status(500).body(Map.of(
                     "message", "Error processing password reset request"
             ));
