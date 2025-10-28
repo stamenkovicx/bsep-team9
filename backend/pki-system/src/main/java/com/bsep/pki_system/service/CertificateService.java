@@ -1,6 +1,6 @@
 package com.bsep.pki_system.service;
 
-import com.bsep.pki_system.controller.AuthController;
+import com.bsep.pki_system.controller .AuthController;
 import com.bsep.pki_system.dto.CreateCertificateDTO;
 import com.bsep.pki_system.model.*;
 import com.bsep.pki_system.repository.CertificateRepository;
@@ -134,15 +134,21 @@ public class CertificateService {
             return true;
         }
 
-        // CA korisnik može da pristupi sertifikatima iz svog lanca
+        // CA korisnik može da pristupi sertifikatima iz svog lanca ili ROOT sertifikatima
         if (user.getRole() == UserRole.CA) {
+            // CA može da pristupi ROOT sertifikatima (svim ROOT sertifikatima)
+            if (certificate.getType() == CertificateType.ROOT) {
+                return true;
+            }
+            // Inače, CA može da pristupi sertifikatima iz svog organizacionog lanca
             return isCertificateInUserOrganizationChain(certificate, user.getOrganization());
         }
 
         // BASIC korisnik može da pristupi samo svojim EE sertifikatima
         if (user.getRole() == UserRole.BASIC) {
-            return certificate.getOwner().getId().equals(user.getId()) &&
-                    certificate.getType() == CertificateType.END_ENTITY;
+            return certificate.getOwner() != null && 
+                   certificate.getOwner().getId().equals(user.getId()) &&
+                   certificate.getType() == CertificateType.END_ENTITY;
         }
 
         return false;
@@ -327,13 +333,10 @@ public class CertificateService {
         return saveCertificate(eeCert);
     }
 
+    @Transactional(readOnly = true)
     public List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type) {
-        // Pretpostavljam da je ova metoda dodata u CertificateRepository kao:
-        // List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type);
-        // Ako repozitorijum ne podržava direktno ovo, koristi se stream filter:
-        return certificateRepository.findByOwnerId(ownerId).stream()
-                .filter(c -> c.getType() == type)
-                .collect(Collectors.toList());
+        // Koristi repository metodu direktno
+        return certificateRepository.findByOwnerIdAndType(ownerId, type);
     }
 
     private void validateIssuerForSigning(Certificate issuer, Date newValidFrom, Date newValidTo) {

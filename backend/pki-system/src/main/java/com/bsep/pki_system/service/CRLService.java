@@ -78,9 +78,17 @@ public class CRLService {
         // 4. Dodaj sve povučene sertifikate
         for (Certificate revokedCert : revokedCerts) {
             BigInteger serialNumber = new BigInteger(revokedCert.getSerialNumber());
-            Date revocationDate = Date.from(
-                    revokedCert.getRevokedAt().atZone(ZoneId.systemDefault()).toInstant()
-            );
+            
+            // Koristi revoked date ili current date ako null
+            Date revocationDate;
+            if (revokedCert.getRevokedAt() != null) {
+                revocationDate = Date.from(
+                        revokedCert.getRevokedAt().atZone(ZoneId.systemDefault()).toInstant()
+                );
+            } else {
+                // Ako revokedAt nije set-ovan, koristi trenutni datum
+                revocationDate = new Date();
+            }
 
             // Mapiranje razloga iz stringa u CRLReason
             int reasonCode = mapRevocationReason(revokedCert.getRevocationReason());

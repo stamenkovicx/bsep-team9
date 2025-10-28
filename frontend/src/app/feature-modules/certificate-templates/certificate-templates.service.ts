@@ -8,7 +8,7 @@ import { CreateTemplateDTO } from './models/create-template.dto';
   providedIn: 'root'
 })
 export class CertificateTemplatesService {
-  private apiUrl = 'http://localhost:8089/api/templates';
+  private apiUrl = 'https://localhost:8089/api/templates';
 
   constructor(private http: HttpClient) { }
 

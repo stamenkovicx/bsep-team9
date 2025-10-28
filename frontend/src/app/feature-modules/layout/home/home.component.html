@@ -110,7 +110,14 @@
           </span>
 
           <!-- ✅ ACTION BUTTONS -->
-          <div class="cert-actions" *ngIf="isAdmin() || isCA()">
+          <div class="cert-actions">
+            <!-- Download Certificate Button (for all certificate types) -->
+            <button mat-icon-button
+                    (click)="downloadCertificate(cert)"
+                    matTooltip="Download Certificate">
+              <mat-icon>download</mat-icon>
+            </button>
+
             <!-- Revoke Button -->
             <button *ngIf="canRevoke(cert)" 
                     mat-icon-button 
@@ -120,12 +127,12 @@
               <mat-icon>cancel</mat-icon>
             </button>
 
-            <!-- Download CRL -->
-            <button *ngIf="canRevoke(cert)"
+            <!-- Download CRL (for CA certificates only, ADMIN only) -->
+            <button *ngIf="cert.isCA && isAdmin()"
                     mat-icon-button
                     (click)="downloadCRL(cert)"
                     matTooltip="Download CRL">
-              <mat-icon>download</mat-icon>
+              <mat-icon>file_download</mat-icon>
             </button>
           </div>
         </div>

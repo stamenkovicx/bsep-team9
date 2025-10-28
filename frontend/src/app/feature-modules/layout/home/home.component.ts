@@ -184,6 +184,38 @@ export class HomeComponent implements OnInit {
       }
     });
   }
+  downloadCertificate(certificate: Certificate): void {
+    if (certificate.type === 'END_ENTITY') {
+      // Download End Entity certificate
+      this.certificateService.downloadEECertificate(certificate.serialNumber).subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${certificate.serialNumber}.cer`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+          this.showMessage('success', '📥 Certificate downloaded successfully');
+        },
+        error: () => this.showMessage('error', '❌ Failed to download certificate')
+      });
+    } else {
+      // Download other certificate types
+      this.certificateService.downloadCertificate(certificate.id).subscribe({
+        next: (blob) => {
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${certificate.serialNumber}.cer`;
+          a.click();
+          window.URL.revokeObjectURL(url);
+          this.showMessage('success', '📥 Certificate downloaded successfully');
+        },
+        error: () => this.showMessage('error', '❌ Failed to download certificate')
+      });
+    }
+  }
+
   downloadCRL(certificate: Certificate): void {
     const issuerSerial = certificate.issuerCertificate?.serialNumber || certificate.serialNumber;
     

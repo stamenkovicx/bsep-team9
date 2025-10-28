@@ -24,5 +24,6 @@ public interface CertificateRepository extends JpaRepository<Certificate, Long> 
     @Query("SELECT c FROM Certificate c WHERE c.isCA = true AND c.status = :status AND c.validTo > :currentDate")
     List<Certificate> findValidIssuers(@Param("status") CertificateStatus status, @Param("currentDate") Date currentDate);
 
-    List<Certificate> findByOwnerIdAndType(Long ownerId, CertificateType type);
+    @Query("SELECT c FROM Certificate c WHERE c.owner.id = :ownerId AND c.type = :type")
+    List<Certificate> findByOwnerIdAndType(@Param("ownerId") Long ownerId, @Param("type") CertificateType type);
 }

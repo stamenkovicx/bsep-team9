@@ -533,14 +533,19 @@ public class CertificateController {
 
     @PreAuthorize("hasAnyRole('BASIC')")
     @GetMapping("/end-entity")
-    public ResponseEntity<List<Certificate>> getMyEESertificates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        User user = userService.findByEmail(userPrincipal.getEmail())
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+    public ResponseEntity<?> getMyEESertificates(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Vraća sve sertifikate gde je 'owner' trenutni korisnik i tip je END_ENTITY
-        // Pretpostavljamo da CertificateService ima findByOwnerIdAndType metodu.
-        List<Certificate> certificates = certificateService.findByOwnerIdAndType(user.getId(), CertificateType.END_ENTITY);
-        return ResponseEntity.ok(certificates);
+            // Vraća sve sertifikate gde je 'owner' trenutni korisnik i tip je END_ENTITY
+            List<Certificate> certificates = certificateService.findByOwnerIdAndType(user.getId(), CertificateType.END_ENTITY);
+            return ResponseEntity.ok(certificates);
+        } catch (Exception e) {
+            logger.error("Error loading End-Entity certificates for BASIC user", e);
+            // Return empty list instead of crashing
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @PreAuthorize("hasAnyRole('ADMIN', 'BASIC', 'CA')")
@@ -555,8 +560,22 @@ public class CertificateController {
             Certificate eeCertificate = certificateService.findBySerialNumber(serialNumber)
                     .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
 
-            // Provera da li korisnik ima pravo da preuzme (mora biti vlasnik i mora biti EE)
-            if (!eeCertificate.getOwner().getId().equals(user.getId()) || eeCertificate.getType() != CertificateType.END_ENTITY) {
+            // Provera da li sertifikat je tipa END_ENTITY
+            if (eeCertificate.getType() != CertificateType.END_ENTITY) {
+                // AUDIT LOG: Pokušaj download-a non-EE sertifikata kao EE
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                        "Invalid certificate type for EE download", false,
+                        "serialNumber=" + serialNumber + ", type=" + eeCertificate.getType(), httpRequest);
+
+                return ResponseEntity.status(403).body(null);
+            }
+
+            // Provera da li korisnik ima pravo da preuzme:
+            // 1. ADMIN može da preuzme bilo koji EE sertifikat
+            // 2. CA može da preuzme bilo koji EE sertifikat
+            // 3. BASIC korisnici mogu samo svoje EE sertifikate
+            if ((user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.CA) && 
+                !eeCertificate.getOwner().getId().equals(user.getId())) {
                 // AUDIT LOG: Neovlašćen download EE sertifikata
                 auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
                         "Unauthorized EE certificate download attempt", false,

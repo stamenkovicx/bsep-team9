@@ -9,7 +9,7 @@ import { CreateEeCsrDTO } from '../certificate-templates/models/create-ee-csr.dt
   providedIn: 'root'
 })
 export class CertificateService {
-  private apiUrl = 'http://localhost:8089/api/certificates';
+  private apiUrl = 'https://localhost:8089/api/certificates';
 
   constructor(private http: HttpClient) { }
 
@@ -85,7 +85,7 @@ export class CertificateService {
   }
 
   downloadCRL(issuerSerialNumber: string): Observable<Blob> {
-    return this.http.get(`http://localhost:8089/api/crl/${issuerSerialNumber}.crl`, {
+    return this.http.get(`https://localhost:8089/api/crl/${issuerSerialNumber}.crl`, {
       responseType: 'blob'
     });
   }

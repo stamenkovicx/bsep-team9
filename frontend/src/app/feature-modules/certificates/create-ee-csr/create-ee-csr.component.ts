@@ -276,11 +276,18 @@ export class CreateEeCsrComponent implements OnInit {
 
     this.isLoading = true;
     
-    const formValue = this.csrForm.value;
+    // Use getRawValue() instead of value to include disabled fields
+    const formValue = this.csrForm.getRawValue();
     
     // KRITIČNA ISPRAVKA: Konverzija datuma u ISO format za Spring Boot
+    // Parse date as UTC to avoid timezone shifts
     const validToDateString: string = formValue.validTo;
-    const validToDate: Date = new Date(validToDateString);
+    const dateParts = validToDateString.split('-'); // YYYY-MM-DD
+    const validToDate = new Date(Date.UTC(
+      parseInt(dateParts[0]), 
+      parseInt(dateParts[1]) - 1, 
+      parseInt(dateParts[2])
+    ));
     const validToFormatted = validToDate.toISOString();
 
 
