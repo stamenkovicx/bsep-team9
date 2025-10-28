@@ -3,12 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { CertificateTemplate } from './models/certificate-template.interface';
 import { CreateTemplateDTO } from './models/create-template.dto';
+import { environment } from '../../../env/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CertificateTemplatesService {
-  private apiUrl = 'https://localhost:8089/api/templates';
+  private apiUrl = `${environment.apiHost}api/templates`;
 
   constructor(private http: HttpClient) { }
 

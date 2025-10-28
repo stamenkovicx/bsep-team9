@@ -4,12 +4,13 @@ import { map, Observable } from 'rxjs';
 import { CreateCertificateDTO } from './models/create-certificate.dto';
 import { Certificate } from './models/certificate.interface';
 import { CreateEeCsrDTO } from '../certificate-templates/models/create-ee-csr.dto';
+import { environment } from '../../../env/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CertificateService {
-  private apiUrl = 'https://localhost:8089/api/certificates';
+  private apiUrl = `${environment.apiHost}api/certificates`;
 
   constructor(private http: HttpClient) { }
 
@@ -85,7 +86,7 @@ export class CertificateService {
   }
 
   downloadCRL(issuerSerialNumber: string): Observable<Blob> {
-    return this.http.get(`https://localhost:8089/api/crl/${issuerSerialNumber}.crl`, {
+    return this.http.get(`${environment.apiHost}api/crl/${issuerSerialNumber}.crl`, {
       responseType: 'blob'
     });
   }
