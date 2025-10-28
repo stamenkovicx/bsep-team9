@@ -1,0 +1,67 @@
+<div class="sessions-container">
+  <h2>Active Sessions</h2>
+  <p class="subtitle">Manage your active login sessions across devices</p>
+
+  <button 
+    mat-raised-button 
+    color="warn" 
+    (click)="revokeAllSessions()"
+    [disabled]="sessions.length <= 1"
+    class="revoke-all-btn"
+    matTooltip="Revoke all other sessions except this one. Users will be logged out on those devices.">
+    <mat-icon>logout</mat-icon>
+    Revoke All Other Sessions
+  </button>
+
+  <div *ngIf="loading" class="loading">
+    <mat-spinner diameter="50"></mat-spinner>
+  </div>
+
+  <div *ngIf="!loading && sessions.length === 0" class="no-sessions">
+    <mat-icon>info</mat-icon>
+    <p>No active sessions found</p>
+  </div>
+
+  <mat-card *ngFor="let session of sessions" class="session-card" 
+            [ngClass]="{'current-session': isCurrentSession(session.sessionId)}">
+    <mat-card-header>
+      <div class="session-header">
+        <div class="session-info">
+          <mat-icon>{{ session.deviceType === 'Mobile' ? 'smartphone' : 'computer' }}</mat-icon>
+          <div>
+            <h3>
+              {{ session.deviceType }}
+              <span *ngIf="isCurrentSession(session.sessionId)" class="current-badge">Current Session</span>
+            </h3>
+            <p class="browser">{{ session.browser }}</p>
+          </div>
+        </div>
+        <button 
+          mat-icon-button 
+          color="warn"
+          (click)="revokeSession(session.sessionId)"
+          [disabled]="isCurrentSession(session.sessionId)"
+          [matTooltip]="isCurrentSession(session.sessionId) ? 'Cannot revoke current session' : 'Revoke this session - user will be logged out'">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="session-details">
+        <div class="detail-item">
+          <mat-icon>language</mat-icon>
+          <span><strong>IP Address:</strong> {{ session.ipAddress }}</span>
+        </div>
+        <div class="detail-item">
+          <mat-icon>access_time</mat-icon>
+          <span><strong>Last Activity:</strong> {{ formatDate(session.lastActivity) }}</span>
+        </div>
+        <div class="detail-item">
+          <mat-icon>event</mat-icon>
+          <span><strong>Session Started:</strong> {{ formatDate(session.createdAt) }}</span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+

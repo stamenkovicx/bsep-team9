@@ -24,16 +24,26 @@ public class JwtService {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(User user) {
+    public String generateToken(User user, String sessionId) {
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("userId", user.getId())
                 .claim("role", user.getRole().name())
                 .claim("is2FAEnabled", user.getIs2faEnabled())
+                .setId(sessionId) // JWT ID (jti) claim for session tracking
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
+    }
+    
+    public String getSessionId(String token) {
+        try {
+            Claims claims = getClaims(token);
+            return claims.getId(); // Returns the jti claim
+        } catch (JwtException e) {
+            return null;
+        }
     }
 
     public boolean validateToken(String token) {
@@ -65,6 +75,7 @@ public class JwtService {
                 .claim("userId", user.getId())
                 .claim("role", user.getRole().name()) // možeš staviti i "TEMPORARY"
                 .claim("temporary", true) // oznaka da je token privremen
+                .setId("temp-" + System.currentTimeMillis()) // Temporary session ID
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + temporaryExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

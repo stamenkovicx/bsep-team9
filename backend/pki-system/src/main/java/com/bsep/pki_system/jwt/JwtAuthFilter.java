@@ -1,6 +1,7 @@
 package com.bsep.pki_system.jwt;
 
 import com.bsep.pki_system.model.UserRole;
+import com.bsep.pki_system.service.TokenSessionService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,9 +21,11 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final TokenSessionService tokenSessionService;
 
-    public JwtAuthFilter(JwtService jwtService) {
+    public JwtAuthFilter(JwtService jwtService, TokenSessionService tokenSessionService) {
         this.jwtService = jwtService;
+        this.tokenSessionService = tokenSessionService;
     }
 
     @Override
@@ -56,6 +59,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (jwtService.validateToken(token)) {
             Claims claims = jwtService.getClaims(token);
+            String sessionId = claims.getId(); // Get session ID from jti claim
+            
+            // Check if session is revoked
+            // When a session is revoked, explicitly deny access with 401 Unauthorized
+            if (sessionId != null && tokenSessionService.isSessionRevoked(sessionId)) {
+                // Session is revoked - return 401 to immediately log out the user
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"message\":\"Your session has been revoked\"}");
+                return;
+            }
+            
+            // Update last activity if session is active
+            if (sessionId != null) {
+                tokenSessionService.updateLastActivity(sessionId);
+            }
+            
             String email = claims.getSubject();
             Long userId = claims.get("userId", Long.class);
             UserRole role = UserRole.valueOf(claims.get("role", String.class));

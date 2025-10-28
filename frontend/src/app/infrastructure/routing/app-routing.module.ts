@@ -8,6 +8,7 @@ import { CreateCertificateComponent } from 'src/app/feature-modules/certificates
 import { ChangePasswordRequiredComponent } from '../auth/change-password-required/change-password-required.component';
 import { ForgotPasswordComponent } from '../auth/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from '../auth/reset-password/reset-password.component';
+import { SessionsComponent } from '../auth/sessions/sessions.component';
 
 const routes: Routes = [
   {path: 'home', component: HomeComponent},
@@ -15,6 +16,7 @@ const routes: Routes = [
   {path: 'register', component: RegistrationComponent},
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
+  { path: 'sessions', component: SessionsComponent, canActivate: [AuthGuard] },
   {
     path: 'certificates',
     canActivate: [AuthGuard],

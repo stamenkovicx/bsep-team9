@@ -9,9 +9,15 @@ import { MatCardModule } from '@angular/material/card';
 import { RouterModule } from '@angular/router';
 import { MatInputModule } from '@angular/material/input';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { ChangePasswordRequiredComponent } from './change-password-required/change-password-required.component';
 import { ForgotPasswordComponent } from './forgot-password/forgot-password.component';
-import { ResetPasswordComponent } from './reset-password/reset-password.component'; 
+import { ResetPasswordComponent } from './reset-password/reset-password.component';
+import { SessionsComponent } from './sessions/sessions.component';
 
 
 
@@ -23,7 +29,8 @@ import { ResetPasswordComponent } from './reset-password/reset-password.componen
     RegistrationComponent,
     ChangePasswordRequiredComponent,
     ForgotPasswordComponent,
-    ResetPasswordComponent
+    ResetPasswordComponent,
+    SessionsComponent
   ],
   imports: [
     CommonModule,
@@ -34,7 +41,12 @@ import { ResetPasswordComponent } from './reset-password/reset-password.componen
     MatCardModule,
     RouterModule,
     MatFormFieldModule,
-    MatInputModule
+    MatInputModule,
+    MatIconModule,
+    MatButtonModule,
+    MatTooltipModule,
+    MatProgressSpinnerModule,
+    MatSnackBarModule
   ],
   exports: [
     LoginComponent,

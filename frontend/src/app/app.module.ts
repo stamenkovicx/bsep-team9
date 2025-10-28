@@ -10,6 +10,7 @@ import { AdministrationModule } from './feature-modules/administration/administr
 import { AuthModule } from './infrastructure/auth/auth.module';
 import { HTTP_INTERCEPTORS, HttpClientModule } from '@angular/common/http';
 import { JwtInterceptor } from './infrastructure/auth/jwt/jwt.interceptor';
+import { JwtErrorInterceptor } from './infrastructure/auth/jwt/jwt-error.interceptor';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -48,6 +49,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     {
       provide: HTTP_INTERCEPTORS,
       useClass: JwtInterceptor,
+      multi: true,
+    },
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: JwtErrorInterceptor,
       multi: true,
     },
   ],

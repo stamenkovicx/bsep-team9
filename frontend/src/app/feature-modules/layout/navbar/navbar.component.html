@@ -19,6 +19,13 @@
                 <mat-icon>password</mat-icon>
                 Password Manager
             </button>
+            <button *ngIf="user && user.email !== ''" 
+                    color="accent" 
+                    mat-raised-button 
+                    [routerLink]="['sessions']">
+                <mat-icon>devices</mat-icon>
+                Sessions
+            </button>
             <button *ngIf="user && user.email !== '' && user.role === 'ADMIN'  " color="accent" mat-raised-button [routerLink]="['register']">Register CA</button>
             <button *ngIf="user && user.email === ''" color="accent" mat-raised-button [routerLink]="['login']">Login</button>
             <button *ngIf="user && user.email !== ''" color="accent" mat-raised-button (click)="onLogout()">Logout</button>

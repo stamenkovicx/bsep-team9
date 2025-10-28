@@ -1,0 +1,113 @@
+.sessions-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+h2 {
+  color: #3f51b5;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.revoke-all-btn {
+  margin-bottom: 2rem;
+}
+
+.loading, .no-sessions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #666;
+}
+
+.no-sessions mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 1rem;
+  color: #bbb;
+}
+
+.session-card {
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #3f51b5;
+}
+
+.session-card.current-session {
+  border-left-color: #4caf50;
+  background-color: #f1f8f4;
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.session-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.session-info mat-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+}
+
+h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.current-badge {
+  background-color: #4caf50;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: normal;
+}
+
+.browser {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.session-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #333;
+}
+
+.detail-item mat-icon {
+  color: #666;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.detail-item strong {
+  margin-right: 0.5rem;
+}
+

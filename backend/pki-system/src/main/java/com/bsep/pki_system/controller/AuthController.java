@@ -7,8 +7,10 @@ import com.bsep.pki_system.model.User;
 import com.bsep.pki_system.model.UserRole;
 import com.bsep.pki_system.service.EmailVerificationService;
 import com.bsep.pki_system.service.RecaptchaService;
+import com.bsep.pki_system.service.TokenSessionService;
 import com.bsep.pki_system.service.UserService;
 import com.bsep.pki_system.validator.PasswordValidator;
+import java.time.LocalDateTime;
 import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +38,7 @@ public class AuthController {
     private final RecaptchaService recaptchaService;
     private final TwoFactorService twoFactorService;
     private final AuditLogService auditLogService;
+    private final TokenSessionService tokenSessionService;
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
@@ -45,7 +48,8 @@ public class AuthController {
                           EmailVerificationService emailVerificationService,
                           RecaptchaService recaptchaService,
                           TwoFactorService twoFactorService,
-                          AuditLogService auditLogService) {
+                          AuditLogService auditLogService,
+                          TokenSessionService tokenSessionService) {
         this.userService = userService;
         this.jwtService = jwtService;
         this.passwordValidator = passwordValidator;
@@ -53,6 +57,7 @@ public class AuthController {
         this.recaptchaService = recaptchaService;
         this.twoFactorService = twoFactorService;
         this.auditLogService = auditLogService;
+        this.tokenSessionService = tokenSessionService;
     }
 
     @PostMapping("/register")
@@ -270,7 +275,14 @@ public class AuthController {
         }
 
         // 3. USPESNA PRIJAVA (Generisanje tokena)
-        String token = jwtService.generateToken(user);
+        String sessionId = tokenSessionService.generateSessionId();
+        LocalDateTime expiresAt = LocalDateTime.now().plusDays(1); // JWT expiration is 24 hours
+        
+        // Create session in database
+        tokenSessionService.createSession(user.getId(), sessionId, httpRequest, expiresAt);
+        
+        // Generate token with session ID
+        String token = jwtService.generateToken(user, sessionId);
 
         // AUDIT LOG: Uspešna prijava - KORISTIMO USER OBJEKAT UMESTO UserPrincipal
         auditLogService.logSecurityEvent(AuditLogService.EVENT_LOGIN,
@@ -604,6 +616,71 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of(
                     "message", e.getMessage()
             ));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/sessions")
+    public ResponseEntity<?> getActiveSessions(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            var sessions = tokenSessionService.getActiveSessions(userPrincipal.getId());
+            return ResponseEntity.ok(sessions);
+        } catch (Exception e) {
+            logger.error("Error fetching sessions", e);
+            return ResponseEntity.status(500).body(Map.of("message", "Error fetching active sessions"));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/sessions/{sessionId}/revoke")
+    public ResponseEntity<?> revokeSession(@PathVariable String sessionId,
+                                          @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            boolean revoked = tokenSessionService.revokeSession(sessionId, userPrincipal.getId());
+            if (revoked) {
+                // AUDIT LOG: Session revoked
+                auditLogService.logSecurityEvent("SESSION_REVOKED",
+                        "User revoked session", true,
+                        "sessionId=" + sessionId + ", userId=" + userPrincipal.getId(),
+                        null);
+                return ResponseEntity.ok(Map.of("message", "Session revoked successfully"));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("message", "Session not found or already revoked"));
+            }
+        } catch (Exception e) {
+            logger.error("Error revoking session", e);
+            return ResponseEntity.status(500).body(Map.of("message", "Error revoking session"));
+        }
+    }
+
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/sessions/revoke-all")
+    public ResponseEntity<?> revokeAllSessions(@AuthenticationPrincipal UserPrincipal userPrincipal,
+                                               @RequestHeader("Authorization") String authorizationHeader) {
+        try {
+            String token = authorizationHeader.substring(7);
+            String currentSessionId = jwtService.getSessionId(token);
+            
+            var sessions = tokenSessionService.getActiveSessions(userPrincipal.getId());
+            int revokedCount = 0;
+            
+            for (var session : sessions) {
+                if (!session.getSessionId().equals(currentSessionId)) {
+                    tokenSessionService.revokeSession(session.getSessionId(), userPrincipal.getId());
+                    revokedCount++;
+                }
+            }
+            
+            // AUDIT LOG: All other sessions revoked
+            auditLogService.logSecurityEvent("ALL_SESSIONS_REVOKED",
+                    "User revoked all other sessions", true,
+                    "userId=" + userPrincipal.getId() + ", count=" + revokedCount,
+                    null);
+            
+            return ResponseEntity.ok(Map.of("message", revokedCount + " session(s) revoked successfully"));
+        } catch (Exception e) {
+            logger.error("Error revoking all sessions", e);
+            return ResponseEntity.status(500).body(Map.of("message", "Error revoking sessions"));
         }
     }
 }
