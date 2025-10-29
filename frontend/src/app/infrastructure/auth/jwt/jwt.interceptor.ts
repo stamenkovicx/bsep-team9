@@ -1,11 +1,13 @@
 import { HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from "@angular/common/http";
 import { Injectable } from "@angular/core";
-import { Observable } from "rxjs";
+import { Observable, from } from "rxjs";
 import { ACCESS_TOKEN } from '../../../shared/constants';
+import { KeycloakService } from '../keycloak.service';
+import { mergeMap } from 'rxjs/operators';
 
 @Injectable()
 export class JwtInterceptor implements HttpInterceptor {
-  constructor() {}
+  constructor(private keycloakService: KeycloakService) {}
 
   intercept(
     request: HttpRequest<any>,
@@ -16,7 +18,18 @@ export class JwtInterceptor implements HttpInterceptor {
       return next.handle(request);
     }
 
-    // Inače dodaj token iz localStorage
+    // Try to get token from Keycloak first
+    const keycloakToken = this.keycloakService.getToken();
+    if (keycloakToken) {
+      const accessTokenRequest = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${keycloakToken}`,
+        },
+      });
+      return next.handle(accessTokenRequest);
+    }
+
+    // Fallback to localStorage token
     const token = localStorage.getItem(ACCESS_TOKEN);
     if (token) {
       const accessTokenRequest = request.clone({

@@ -3,6 +3,7 @@ import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { TokenStorage } from './jwt/token.service';
+import { KeycloakService } from './keycloak.service';
 import { environment } from 'src/env/environment';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { Login } from './model/login.model';
@@ -21,28 +22,47 @@ import { TokenSession } from './model/token-session.model';
 export class AuthService {
   user$ = new BehaviorSubject<User>({email: "", id: 0, role: "" });
 
-  constructor(private http: HttpClient,
+  constructor(
+    private http: HttpClient,
     private tokenStorage: TokenStorage,
-    private router: Router) { }
+    private router: Router,
+    private keycloakService: KeycloakService
+  ) {
+    // Subscribe to Keycloak authentication state
+    this.keycloakService.authenticated$.subscribe(isAuthenticated => {
+      if (isAuthenticated) {
+        this.setUser();
+      }
+    });
+  }
 
-    login(loginPayload: LoginPayload): Observable<LoginResponse> {
-    return this.http
-      .post<LoginResponse>(environment.apiHost + 'auth/login', loginPayload) 
-      .pipe(
-        tap((response) => {
-          // UVIJEK ČUVAJ TOKEN, čak i kada je potrebna promena lozinke
-          this.tokenStorage.saveAccessToken(response.token);
-          
-          const user: User = {
-            id: response.userId,
-            email: response.email,
-            role: response.userRole,
-            is2FAEnabled: response.is2faEnabled,
-            passwordChangeRequired: response.passwordChangeRequired || false
-          };
-          this.user$.next(user);
-        })
-      );
+    // Basic login with JWT
+    loginBasic(loginPayload: LoginPayload): Observable<LoginResponse> {
+      return this.http.post<LoginResponse>(environment.apiHost + 'auth/login', loginPayload)
+        .pipe(
+          tap((response) => {
+            this.tokenStorage.saveAccessToken(response.token);
+            const user: User = {
+              id: response.userId,
+              email: response.email,
+              role: response.userRole,
+              is2FAEnabled: response.is2faEnabled,
+              passwordChangeRequired: response.passwordChangeRequired || false
+            };
+            this.user$.next(user);
+          })
+        );
+    }
+
+    // Keycloak login
+    loginKeycloak(): void {
+      this.keycloakService.login();
+    }
+
+    // Legacy login method - redirects to appropriate method
+    login(loginPayload: LoginPayload): void {
+      // Default to Keycloak for now
+      this.loginKeycloak();
   }
 
 
@@ -55,11 +75,9 @@ export class AuthService {
 
   
   logout(): void {
-    this.router.navigate(['/home']).then(_ => {
-      this.tokenStorage.clear();
-      this.user$.next({email: "", id: 0, role: "" });
-      }
-    );
+    this.keycloakService.logout();
+    this.tokenStorage.clear();
+    this.user$.next({email: "", id: 0, role: "" });
   }
 
   checkIfUserExists(): void {
@@ -71,22 +89,48 @@ export class AuthService {
   }
 
   private setUser(): void {
+    // Try Keycloak first
+    if (this.keycloakService.isAuthenticated()) {
+      const roles = this.keycloakService.getUserRoles();
+      let role = "BASIC";
+      if (roles.includes("ADMIN")) {
+        role = "ADMIN";
+      } else if (roles.includes("CA")) {
+        role = "CA";
+      }
+
+      const user: User = {
+        id: 0,
+        email: this.keycloakService.getUserEmail() || "",
+        role: role,
+        is2FAEnabled: false
+      };
+      this.user$.next(user);
+      return;
+    }
+
+    // Fallback to basic auth (JWT token)
     const jwtHelperService = new JwtHelperService();
     const accessToken = this.tokenStorage.getAccessToken() || "";
-    if(accessToken === "") return;
+    if (accessToken === "") return;
 
-    // Dekodiranje tokena sa ispravnim poljima
     const decodedToken = jwtHelperService.decodeToken(accessToken);
     const user: User = {
-        id: decodedToken.userId, // Ispravno polje je 'userId'
-        email: decodedToken.sub,   // Email se nalazi u 'sub' (subject) polju
-        role: decodedToken.role,   // Uloga je u 'role' polju
-        is2FAEnabled: decodedToken.is2FAEnabled || false
+      id: decodedToken.userId,
+      email: decodedToken.sub,
+      role: decodedToken.role,
+      is2FAEnabled: decodedToken.is2FAEnabled || false
     };
     this.user$.next(user);
   }
 
   isLoggedIn(): boolean {
+    // Check if logged in via Keycloak
+    if (this.keycloakService.isAuthenticated()) {
+      return true;
+    }
+    
+    // Check if logged in via basic auth
     const token = this.tokenStorage.getAccessToken();
     if (!token) return false;
     

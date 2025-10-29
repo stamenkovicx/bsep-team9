@@ -3,75 +3,101 @@
       
       <mat-card-header>
         <mat-icon mat-card-avatar>lock</mat-icon>
-        <mat-card-title>
-           {{ twoFactorRequired ? 'Two-Factor Verification' : 'Secure Sign In' }}
-        </mat-card-title>
-        <mat-card-subtitle>
-           {{ twoFactorRequired ? 'Enter the code from your authenticator app' : 'Enter your credentials to access your account' }}
-        </mat-card-subtitle>
+        <mat-card-title>Secure Sign In</mat-card-title>
+        <mat-card-subtitle>Choose your authentication method</mat-card-subtitle>
       </mat-card-header>
       
       <mat-card-content>
-        <form class="login-form" [formGroup]="loginForm" (ngSubmit)="login()">
-          
-          <!-- EMAIL I LOZINKA SE PRIKAZUJU UVEK, ALI SE ONEMOGUCAVAJU U 2FA MODU -->
-          <mat-form-field appearance="outline">
-            <mat-label>Email</mat-label>
-            <input matInput formControlName="email" type="email" placeholder="your.email@example.com">
-            <mat-icon matSuffix>email</mat-icon>
-            <mat-error *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
-                Please enter a valid email address.
-            </mat-error>
-          </mat-form-field>
-          
-          <mat-form-field appearance="outline">
-            <mat-label>Password</mat-label>
-            <input matInput formControlName="password" type="password">
-            <mat-icon matSuffix>vpn_key</mat-icon>
-             <mat-error *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
-                Password is required.
-            </mat-error>
-          </mat-form-field>
+        
+        <!-- Method Selection -->
+        <div class="auth-method-tabs">
+          <button mat-button (click)="selectAuthMethod('basic')" [class.selected]="selectedAuthMethod === 'basic'">
+            <mat-icon>account_circle</mat-icon>
+            Basic Auth
+          </button>
+          <button mat-button (click)="selectAuthMethod('keycloak')" [class.selected]="selectedAuthMethod === 'keycloak'">
+            <mat-icon>security</mat-icon>
+            Keycloak
+          </button>
+        </div>
 
-          <!-- POLJE ZA 2FA KOD - Prikazuje se tek nakon što server zatraži -->
-          <mat-form-field appearance="outline" *ngIf="twoFactorRequired">
-            <mat-label>2FA Code</mat-label>
-            <input matInput 
-                   [formControl]="twoFactorCodeControl" 
-                   type="text" 
-                   maxlength="6"
-                   placeholder="Enter 6-digit code">
-            <mat-icon matSuffix>verified_user</mat-icon>
-            <mat-error *ngIf="twoFactorCodeControl.invalid && twoFactorCodeControl.touched">
-              2FA Code must be 6 digits and contain only numbers.
-            </mat-error>
-          </mat-form-field>
-          
-          <!-- RECAPTCHA SE PRIKAZUJE SAMO U PRVOM KORAKU -->
-          <div class="recaptcha-container" *ngIf="!twoFactorRequired">
+        <!-- Basic Auth Form -->
+        <div *ngIf="selectedAuthMethod === 'basic'" class="login-form">
+          <form [formGroup]="loginForm" (ngSubmit)="loginWithBasic()">
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" type="email" placeholder="your.email@example.com">
+              <mat-icon matSuffix>email</mat-icon>
+              <mat-error *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched">
+                Please enter a valid email address.
+              </mat-error>
+            </mat-form-field>
+            
+            <mat-form-field appearance="outline">
+              <mat-label>Password</mat-label>
+              <input matInput formControlName="password" type="password">
+              <mat-icon matSuffix>vpn_key</mat-icon>
+              <mat-error *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched">
+                Password is required.
+              </mat-error>
+            </mat-form-field>
+
+            <!-- 2FA Code -->
+            <mat-form-field appearance="outline" *ngIf="twoFactorRequired">
+              <mat-label>2FA Code</mat-label>
+              <input matInput 
+                     [formControl]="twoFactorCodeControl" 
+                     type="text" 
+                     maxlength="6"
+                     placeholder="Enter 6-digit code">
+              <mat-icon matSuffix>verified_user</mat-icon>
+              <mat-error *ngIf="twoFactorCodeControl.invalid && twoFactorCodeControl.touched">
+                2FA Code must be 6 digits and contain only numbers.
+              </mat-error>
+            </mat-form-field>
+            
+            <!-- reCAPTCHA -->
+            <div class="recaptcha-container" *ngIf="!twoFactorRequired">
               <re-captcha
-                  #captchaElem
                   formControlName="recaptchaToken"
-                  [siteKey]="siteKey"
-                  >
+                  [siteKey]="siteKey">
               </re-captcha>
+            </div>
+            
+            <button class="login-button" color="primary" type="submit" mat-raised-button 
+                    [disabled]="twoFactorRequired ? twoFactorCodeControl.invalid : loginForm.invalid">
+              {{ twoFactorRequired ? 'Verify & Login' : 'Sign In' }}
+            </button>
+            
+            <p class="forgot-password-link">
+              <a routerLink="/forgot-password">Forgot your password?</a>
+            </p>
+
+            <p class="signup-link">
+              Don't have an account yet? <a routerLink="/register">Sign Up</a>
+            </p>
+          </form>
+        </div>
+
+        <!-- Keycloak Auth -->
+        <div *ngIf="selectedAuthMethod === 'keycloak'" class="keycloak-login">
+          <div class="login-info">
+            <mat-icon color="primary">security</mat-icon>
+            <p>Sign in using Keycloak SSO (Single Sign-On)</p>
           </div>
           
-          <!-- Dugme za prijavu koristi dinamičku validaciju -->
-          <button class="login-button" color="primary" type="submit" mat-raised-button 
-                [disabled]="twoFactorRequired ? twoFactorCodeControl.invalid : loginForm.invalid">
-            {{ twoFactorRequired ? 'Verify & Login' : 'Login' }}
+          <button class="login-button" color="primary" mat-raised-button (click)="loginWithKeycloak()">
+            <mat-icon>login</mat-icon>
+            Sign In with Keycloak
           </button>
           
-          <p class="forgot-password-link">
-            <a routerLink="/forgot-password">Forgot your password?</a>
-          </p>
-
-          <p class="signup-link">
-            Don't have an account yet? <a routerLink="/register">Sign Up</a>
-          </p>
-          
-        </form>
+          <div class="info-box">
+            <mat-icon>info</mat-icon>
+            <span>Keycloak provides secure, enterprise-grade authentication with SSO capabilities.</span>
+          </div>
+        </div>
+        
       </mat-card-content>
     </mat-card>
   </div>

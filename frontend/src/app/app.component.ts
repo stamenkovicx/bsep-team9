@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { AuthService } from './infrastructure/auth/auth.service';
+import { KeycloakService } from './infrastructure/auth/keycloak.service';
 
 @Component({
   selector: 'app-root',
@@ -11,10 +12,13 @@ export class AppComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
+    private keycloakService: KeycloakService
   ) {}
 
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
+    // Initialize Keycloak
+    await this.keycloakService.init();
     this.checkIfUserExists();
   }
   

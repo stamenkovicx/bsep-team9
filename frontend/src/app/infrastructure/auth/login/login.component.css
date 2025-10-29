@@ -119,3 +119,67 @@
   .forgot-password-link a:hover {
     text-decoration: underline;
   }
+
+  /* Auth method tabs */
+  .auth-method-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #e0e0e0;
+  }
+
+  .auth-method-tabs button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 4px 4px 0 0;
+    transition: all 0.3s ease;
+  }
+
+  .auth-method-tabs button.selected {
+    background-color: #f5f5f5;
+    border-bottom: 2px solid #3f51b5;
+  }
+
+  /* Keycloak login section */
+  .keycloak-login {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .login-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .login-info mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+  }
+
+  .login-info p {
+    color: #666;
+    font-size: 14px;
+  }
+
+  .info-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #666;
+  }
+
+  .info-box mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
