@@ -170,11 +170,11 @@ public class HttpsCertificateService {
             httpsCertificate.setBasicConstraints("CA:FALSE");
             httpsCertificate.setKeyUsage("digitalSignature, keyEncipherment, dataEncipherment");
 
-            // Save to database
-            Certificate savedCert = certificateService.saveCertificate(httpsCertificate);
-
-            // Store in keystore as a KeyEntry with private key
+            // Store in keystore as a KeyEntry with private key first
             keystoreService.savePrivateKey("HTTPS_SERVER", serverKeyPair.getPrivate(), httpsX509Cert, "HTTPS_SERVER");
+            
+            // Save to database with PEM data (for consistency with regular EE certificates)
+            Certificate savedCert = certificateService.saveEndEntityCertificate(httpsCertificate, httpsX509Cert);
 
             // Export to PKCS12 for Spring Boot
             exportToPkcs12(serverKeyPair.getPrivate(), httpsX509Cert, rootX509Cert);

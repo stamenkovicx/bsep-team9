@@ -48,4 +48,7 @@ export interface Certificate {
   
   // Public key
   publicKey?: string;
+  
+  // PEM certificate data (stored for EE certificates without private keys)
+  pemData?: string;
 }

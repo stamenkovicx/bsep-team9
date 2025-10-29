@@ -376,16 +376,32 @@ public class CertificateController {
             Certificate certificate = certificateService.findById(id)
                     .orElseThrow(() -> new RuntimeException("Certificate not found"));
 
-            // 3. Izvlačenje stvarnog X509 sertifikata iz Keystore-a
-            String alias = "CA_" + certificate.getSerialNumber();
-            X509Certificate x509Cert = (X509Certificate) certificateGeneratorService.getKeystoreService().getCertificate(alias);
-            if (x509Cert == null) {
-                throw new RuntimeException("X509 Certificate not found in keystore for alias: " + alias);
+            byte[] pemBytes;
+            String pemContent;
+            
+            // Check if certificate has PEM data stored in database (for EE certificates)
+            if (certificate.getPemData() != null && !certificate.getPemData().isEmpty()) {
+                // Use PEM data from database
+                pemContent = certificate.getPemData();
+                pemBytes = pemContent.getBytes(StandardCharsets.UTF_8);
+            } else {
+                // For CA certificates (ROOT/INTERMEDIATE), retrieve from keystore
+                String alias;
+                if (certificate.getType() == CertificateType.END_ENTITY) {
+                    alias = "EE_" + certificate.getSerialNumber();
+                } else {
+                    alias = "CA_" + certificate.getSerialNumber();
+                }
+                
+                X509Certificate x509Cert = (X509Certificate) certificateGeneratorService.getKeystoreService().getCertificate(alias);
+                if (x509Cert == null) {
+                    throw new RuntimeException("X509 Certificate not found in keystore for alias: " + alias);
+                }
+                
+                // Generate PEM format from X509 certificate
+                pemContent = generatePemContent(x509Cert);
+                pemBytes = pemContent.getBytes(StandardCharsets.UTF_8);
             }
-            // Generisanje PEM formata sertifikata
-            String pemContent = generatePemContent(x509Cert);
-
-            byte[] pemBytes = pemContent.getBytes(StandardCharsets.UTF_8);
 
             // AUDIT LOG: Uspešan download sertifikata
             auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
@@ -545,6 +561,65 @@ public class CertificateController {
             logger.error("Error loading End-Entity certificates for BASIC user", e);
             // Return empty list instead of crashing
             return ResponseEntity.ok(List.of());
+        }
+    }
+
+    // GET - Get certificate PEM data for display/download
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/pem")
+    public ResponseEntity<?> getCertificatePem(@PathVariable Long id,
+                                               @AuthenticationPrincipal UserPrincipal userPrincipal,
+                                               HttpServletRequest httpRequest) {
+        try {
+            User user = userService.findByEmail(userPrincipal.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+            // Provjera autorizacije
+            if (!certificateService.canUserAccessCertificate(id, user)) {
+                auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                        "Unauthorized access to PEM data", false,
+                        "certificateId=" + id + ", userId=" + user.getId(), httpRequest);
+                return ResponseEntity.status(403).body(Map.of("message", "Not authorized to access this certificate"));
+            }
+
+            Certificate certificate = certificateService.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+            String pemData;
+            
+            // Check if certificate has PEM data stored in database
+            if (certificate.getPemData() != null && !certificate.getPemData().isEmpty()) {
+                pemData = certificate.getPemData();
+            } else {
+                // Retrieve from keystore and convert to PEM
+                String alias;
+                if (certificate.getType() == CertificateType.END_ENTITY) {
+                    alias = "EE_" + certificate.getSerialNumber();
+                } else {
+                    alias = "CA_" + certificate.getSerialNumber();
+                }
+                
+                X509Certificate x509Cert = (X509Certificate) certificateGeneratorService.getKeystoreService().getCertificate(alias);
+                if (x509Cert == null) {
+                    throw new RuntimeException("X509 Certificate not found in keystore for alias: " + alias);
+                }
+                
+                pemData = generatePemContent(x509Cert);
+            }
+
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "PEM data retrieved", true,
+                    "certificateId=" + id + ", serialNumber=" + certificate.getSerialNumber(), httpRequest);
+
+            return ResponseEntity.ok(Map.of("pemData", pemData));
+
+        } catch (Exception e) {
+            auditLogService.logSecurityEvent(AuditLogService.EVENT_CERTIFICATE_VIEWED,
+                    "Failed to retrieve PEM data", false,
+                    "certificateId=" + id + ", error=" + e.getMessage(), httpRequest);
+            
+            logger.error("Error retrieving PEM data", e);
+            return ResponseEntity.status(500).body(Map.of("message", "Error retrieving certificate PEM data: " + e.getMessage()));
         }
     }
 

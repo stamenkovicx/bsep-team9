@@ -104,4 +104,8 @@ downloadEECertificate(serialNumber: string): Observable<Blob> {
  getMyEndEntityCertificates(): Observable<Certificate[]> {
   return this.http.get<Certificate[]>(`${this.apiUrl}/end-entity`);
 }
+
+ getCertificatePem(id: number): Observable<{ pemData: string }> {
+  return this.http.get<{ pemData: string }>(`${this.apiUrl}/${id}/pem`);
+}
 }

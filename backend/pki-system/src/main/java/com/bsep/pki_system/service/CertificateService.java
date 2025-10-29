@@ -320,17 +320,16 @@ public class CertificateService {
         Certificate issuerCertificate = certificateRepository.findById(issuerCertificateId)
                 .orElseThrow(() -> new IllegalArgumentException("Issuer certificate with ID " + issuerCertificateId + " not found."));
 
-
-
-        // 3. Validacija izdavaoca (CA, važenje, status)
+        // 2. Validacija izdavaoca (CA, važenje, status)
         validateIssuerForSigning(issuerCertificate, validFrom, validTo);
 
-        // 4. Generiši sertifikat koristeći GeneratorService
+        // 3. Generiši sertifikat koristeći GeneratorService
+        // This method already saves the certificate to the database with PEM data and to the keystore as TrustedCertificateEntry
         Certificate eeCert = certificateGeneratorService.generateEECertificateFromCsr(
                 csrPem, validFrom, validTo, issuerCertificate, owner);
 
-        // 5. Sačuvaj ga u bazi
-        return saveCertificate(eeCert);
+        // The certificate is already saved by generateEECertificateFromCsr (with PEM data in DB and in keystore)
+        return eeCert;
     }
 
     @Transactional(readOnly = true)
